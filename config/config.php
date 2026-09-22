@@ -54,10 +54,11 @@ function asset(string $path = ''): string
 }
 
 /**
- * Get School Logo URL (Custom uploaded logo or default vector crest)
+ * Get School Logo URL (Custom uploaded logo or default crest)
  */
 function getSchoolLogoUrl(): string
 {
+    // 1. Check database system setting if configured
     $customLogo = getSetting('school_logo');
     if (!empty($customLogo)) {
         $logoFile = LOGO_UPLOAD_DIR . DIRECTORY_SEPARATOR . $customLogo;
@@ -65,6 +66,23 @@ function getSchoolLogoUrl(): string
             return url('uploads/logo/' . $customLogo) . '?v=' . filemtime($logoFile);
         }
     }
+
+    // 2. Check if uploaded logo exists in uploads/logo directory
+    if (is_dir(LOGO_UPLOAD_DIR)) {
+        $files = glob(LOGO_UPLOAD_DIR . DIRECTORY_SEPARATOR . '*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG}', GLOB_BRACE);
+        if (!empty($files)) {
+            usort($files, fn($a, $b) => filemtime($b) - filemtime($a));
+            $latest = basename($files[0]);
+            return url('uploads/logo/' . $latest) . '?v=' . filemtime($files[0]);
+        }
+    }
+
+    // 3. Check assets fallback
+    $assetLogo = BASE_DIR . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'school_logo.jpeg';
+    if (file_exists($assetLogo)) {
+        return asset('images/school_logo.jpeg') . '?v=' . filemtime($assetLogo);
+    }
+
     return asset('images/logo.svg');
 }
 

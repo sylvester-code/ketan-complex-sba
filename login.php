@@ -189,13 +189,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             100% { background-position: 0% 50%; }
         }
         .school-crest {
-            width: 78px;
-            height: 78px;
-            margin-bottom: 0.8rem;
-            filter: drop-shadow(0 6px 12px rgba(0,0,0,0.35));
-            transition: transform .35s ease;
+            width: 84px;
+            height: 84px;
+            object-fit: contain;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 6px;
+            margin-bottom: 0.85rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+            transition: transform .35s ease, box-shadow .35s ease;
+            display: inline-block;
         }
-        .login-card:hover .school-crest { transform: scale(1.05) rotate(-3deg); }
+        .login-card:hover .school-crest {
+            transform: scale(1.06) rotate(-2deg);
+            box-shadow: 0 12px 28px rgba(0, 212, 170, 0.3);
+        }
         .brand-title {
             font-family: 'Outfit', sans-serif;
             font-weight: 900;

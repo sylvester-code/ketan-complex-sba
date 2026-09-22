@@ -77,7 +77,34 @@ class Database {
         } catch (Throwable $e) {
             $this->connection = null;
             $this->lastError = $e->getMessage();
-            error_log("Database Connection Error: " . $e->getMessage());
+            error_log("Database MySQL Connection Error: " . $e->getMessage());
+
+            // Automated SQLite fallback (ensures instant cloud out-of-the-box operation)
+            $sqliteBundled = dirname(__DIR__) . '/database/ketan_complex_sba.sqlite';
+            $sqliteTarget = $sqliteBundled;
+
+            // In serverless environments like AWS Lambda / Vercel, copy to /tmp for write access
+            $tmpDir = sys_get_temp_dir();
+            if (is_dir($tmpDir) && is_writable($tmpDir) && (getenv('VERCEL') || !empty($_ENV['VERCEL']) || strpos(__DIR__, '/var/task') !== false || !file_exists($sqliteBundled))) {
+                $sqliteTarget = rtrim($tmpDir, '/\\') . '/ketan_complex_sba.sqlite';
+                if (!file_exists($sqliteTarget) && file_exists($sqliteBundled)) {
+                    @copy($sqliteBundled, $sqliteTarget);
+                }
+            }
+
+            $activeSqliteFile = file_exists($sqliteTarget) ? $sqliteTarget : (file_exists($sqliteBundled) ? $sqliteBundled : null);
+            if ($activeSqliteFile) {
+                try {
+                    $this->connection = new PDO("sqlite:" . $activeSqliteFile, null, null, [
+                        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                        PDO::ATTR_TIMEOUT            => 5
+                    ]);
+                    $this->lastError = null; // Connected successfully via SQLite
+                } catch (Throwable $sqle) {
+                    error_log("SQLite Fallback Connection Error: " . $sqle->getMessage());
+                }
+            }
         }
     }
 
