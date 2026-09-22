@@ -100,6 +100,20 @@ class Database {
                         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                         PDO::ATTR_TIMEOUT            => 5
                     ]);
+
+                    // Register MySQL compatibility functions in SQLite
+                    $this->connection->sqliteCreateFunction('NOW', fn() => date('Y-m-d H:i:s'));
+                    $this->connection->sqliteCreateFunction('now', fn() => date('Y-m-d H:i:s'));
+                    $this->connection->sqliteCreateFunction('CURDATE', fn() => date('Y-m-d'));
+                    $this->connection->sqliteCreateFunction('curdate', fn() => date('Y-m-d'));
+                    $this->connection->sqliteCreateFunction('CONCAT', fn(...$args) => implode('', $args));
+                    $this->connection->sqliteCreateFunction('concat', fn(...$args) => implode('', $args));
+                    $this->connection->sqliteCreateFunction('IFNULL', fn($a, $b) => $a !== null ? $a : $b);
+                    $this->connection->sqliteCreateFunction('ifnull', fn($a, $b) => $a !== null ? $a : $b);
+                    $this->connection->sqliteCreateFunction('YEAR', fn($d) => $d ? date('Y', strtotime($d)) : null);
+                    $this->connection->sqliteCreateFunction('MONTH', fn($d) => $d ? date('m', strtotime($d)) : null);
+                    $this->connection->sqliteCreateFunction('DAY', fn($d) => $d ? date('d', strtotime($d)) : null);
+
                     $this->lastError = null; // Connected successfully via SQLite
                 } catch (Throwable $sqle) {
                     error_log("SQLite Fallback Connection Error: " . $sqle->getMessage());

@@ -145,40 +145,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         // 1. Create or update assessment submission record (Status: approved)
         $subId = null;
+        $now = date('Y-m-d H:i:s');
         if ($submission) {
             $subId = $submission['id'];
+            $submittedAt = !empty($submission['submitted_at']) ? $submission['submitted_at'] : $now;
             $updateSub = $db->prepare("
                 UPDATE assessment_submissions 
                 SET status = 'approved', 
-                    submitted_at = COALESCE(submitted_at, NOW()),
+                    submitted_at = ?,
                     reviewed_by = ?,
-                    reviewed_at = NOW(),
+                    reviewed_at = ?,
                     review_comments = 'Auto-approved on upload'
                 WHERE id = ?
             ");
-            $updateSub->execute([$userId, $subId]);
+            $updateSub->execute([$submittedAt, $userId, $now, $subId]);
         } else {
             $insertSub = $db->prepare("
                 INSERT INTO assessment_submissions (teacher_id, class_id, subject_id, academic_year_id, term_id, status, submitted_at, reviewed_by, reviewed_at, review_comments)
-                VALUES (?, ?, ?, ?, ?, 'approved', NOW(), ?, NOW(), 'Auto-approved on upload')
+                VALUES (?, ?, ?, ?, ?, 'approved', ?, ?, ?, 'Auto-approved on upload')
             ");
-            $insertSub->execute([$userId, $selectedClassId, $selectedSubjectId, $yearId, $termId, $userId]);
+            $insertSub->execute([$userId, $selectedClassId, $selectedSubjectId, $yearId, $termId, $now, $userId, $now]);
             $subId = $db->lastInsertId();
         }
 
         // 2. Save or update individual student marks (Status: approved)
-        $markStmt = $db->prepare("
+        $checkExistingMark = $db->prepare("SELECT id FROM marks WHERE student_id = ? AND subject_id = ? AND academic_year_id = ? AND term_id = ?");
+        $updateMarkStmt = $db->prepare("
+            UPDATE marks 
+            SET submission_id = ?, class_id = ?, sba_score = ?, exam_score = ?, total_score = ?, grade = ?, remark = ?, status = 'approved', entered_by = ?
+            WHERE id = ?
+        ");
+        $insertMarkStmt = $db->prepare("
             INSERT INTO marks (submission_id, student_id, subject_id, class_id, academic_year_id, term_id, sba_score, exam_score, total_score, grade, remark, status, entered_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?)
-            ON DUPLICATE KEY UPDATE
-                submission_id = VALUES(submission_id),
-                sba_score = VALUES(sba_score),
-                exam_score = VALUES(exam_score),
-                total_score = VALUES(total_score),
-                grade = VALUES(grade),
-                remark = VALUES(remark),
-                status = 'approved',
-                entered_by = VALUES(entered_by)
         ");
 
         $savedCount = 0;
@@ -197,10 +196,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $total = round($sba + $exam, 2);
             $gradeInfo = calculateGradeAndRemark($total, $gradingScale);
 
-            $markStmt->execute([
-                $subId, (int)$studentId, $selectedSubjectId, $selectedClassId, $yearId, $termId,
-                $sba, $exam, $total, $gradeInfo['grade'], $gradeInfo['remark'], $userId
-            ]);
+            $checkExistingMark->execute([(int)$studentId, $selectedSubjectId, $yearId, $termId]);
+            $existingId = $checkExistingMark->fetchColumn();
+
+            if ($existingId) {
+                $updateMarkStmt->execute([
+                    $subId, $selectedClassId, $sba, $exam, $total, $gradeInfo['grade'], $gradeInfo['remark'], $userId, $existingId
+                ]);
+            } else {
+                $insertMarkStmt->execute([
+                    $subId, (int)$studentId, $selectedSubjectId, $selectedClassId, $yearId, $termId,
+                    $sba, $exam, $total, $gradeInfo['grade'], $gradeInfo['remark'], $userId
+                ]);
+            }
             $savedCount++;
             if (!$firstSavedStudentId) {
                 $firstSavedStudentId = (int)$studentId;

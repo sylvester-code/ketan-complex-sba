@@ -40,9 +40,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             flash('danger', 'Maximum SBA Score + Maximum Exam Score must equal 100% total.');
         } else {
             try {
-                $stmt = $db->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+                $checkSetting = $db->prepare("SELECT id FROM system_settings WHERE setting_key = ?");
+                $updSetting = $db->prepare("UPDATE system_settings SET setting_value = ? WHERE setting_key = ?");
+                $insSetting = $db->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)");
+
                 foreach ($settingsToSave as $k => $v) {
-                    $stmt->execute([$k, (string)$v]);
+                    $checkSetting->execute([$k]);
+                    if ($checkSetting->fetchColumn()) {
+                        $updSetting->execute([(string)$v, $k]);
+                    } else {
+                        $insSetting->execute([$k, (string)$v]);
+                    }
                 }
                 logActivity('UPDATE_SETTINGS', 'Updated school profile and assessment weight settings (50/50)', 'system_settings');
                 flash('success', 'School configuration updated successfully.');
@@ -159,7 +167,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $target = LOGO_UPLOAD_DIR . DIRECTORY_SEPARATOR . $filename;
 
                 if (move_uploaded_file($file['tmp_name'], $target)) {
-                    $stmt = $db->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES ('school_logo', ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+                    $checkLogo = $db->prepare("SELECT id FROM system_settings WHERE setting_key = 'school_logo'");
+                    $checkLogo->execute();
+                    if ($checkLogo->fetchColumn()) {
+                        $stmt = $db->prepare("UPDATE system_settings SET setting_value = ? WHERE setting_key = 'school_logo'");
+                    } else {
+                        $stmt = $db->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES ('school_logo', ?)");
+                    }
                     $stmt->execute([$filename]);
                     logActivity('UPLOAD_LOGO', 'Uploaded new school logo', 'system_settings');
                     flash('success', 'School logo successfully uploaded and updated across all portals, report cards, and broadsheets!');

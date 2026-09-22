@@ -222,51 +222,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $db->beginTransaction();
 
             // 1. Get or Create Submission (Status: approved)
-            $subStmt = $db->prepare("SELECT id FROM assessment_submissions WHERE class_id = ? AND subject_id = ? AND academic_year_id = ? AND term_id = ?");
+            $now = date('Y-m-d H:i:s');
+            $subStmt = $db->prepare("SELECT id, submitted_at FROM assessment_submissions WHERE class_id = ? AND subject_id = ? AND academic_year_id = ? AND term_id = ?");
             $subStmt->execute([$selectedClassId, $selectedSubjectId, $yearId, $termId]);
-            $subId = $subStmt->fetchColumn();
+            $existingSub = $subStmt->fetch();
 
-            if ($subId) {
+            if ($existingSub) {
+                $subId = $existingSub['id'];
+                $submittedAt = !empty($existingSub['submitted_at']) ? $existingSub['submitted_at'] : $now;
                 $updSub = $db->prepare("
                     UPDATE assessment_submissions 
                     SET status = 'approved',
-                        submitted_at = COALESCE(submitted_at, NOW()),
+                        submitted_at = ?,
                         reviewed_by = ?,
-                        reviewed_at = NOW(),
+                        reviewed_at = ?,
                         review_comments = 'Auto-approved on bulk import'
                     WHERE id = ?
                 ");
-                $updSub->execute([$userId, $subId]);
+                $updSub->execute([$submittedAt, $userId, $now, $subId]);
             } else {
                 $newSub = $db->prepare("
                     INSERT INTO assessment_submissions (teacher_id, class_id, subject_id, academic_year_id, term_id, status, submitted_at, reviewed_by, reviewed_at, review_comments)
-                    VALUES (?, ?, ?, ?, ?, 'approved', NOW(), ?, NOW(), 'Auto-approved on bulk import')
+                    VALUES (?, ?, ?, ?, ?, 'approved', ?, ?, ?, 'Auto-approved on bulk import')
                 ");
-                $newSub->execute([$userId, $selectedClassId, $selectedSubjectId, $yearId, $termId, $userId]);
+                $newSub->execute([$userId, $selectedClassId, $selectedSubjectId, $yearId, $termId, $now, $userId, $now]);
                 $subId = $db->lastInsertId();
             }
 
             // 2. Insert or Update Marks (Status: approved)
-            $markStmt = $db->prepare("
+            $checkExistingMark = $db->prepare("SELECT id FROM marks WHERE student_id = ? AND subject_id = ? AND academic_year_id = ? AND term_id = ?");
+            $updateMarkStmt = $db->prepare("
+                UPDATE marks 
+                SET submission_id = ?, class_id = ?, sba_score = ?, exam_score = ?, total_score = ?, grade = ?, remark = ?, status = 'approved', entered_by = ?
+                WHERE id = ?
+            ");
+            $insertMarkStmt = $db->prepare("
                 INSERT INTO marks (submission_id, student_id, subject_id, class_id, academic_year_id, term_id, sba_score, exam_score, total_score, grade, remark, status, entered_by)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?)
-                ON DUPLICATE KEY UPDATE
-                    submission_id = VALUES(submission_id),
-                    sba_score = VALUES(sba_score),
-                    exam_score = VALUES(exam_score),
-                    total_score = VALUES(total_score),
-                    grade = VALUES(grade),
-                    remark = VALUES(remark),
-                    status = 'approved',
-                    entered_by = VALUES(entered_by)
             ");
 
             $imported = 0;
             foreach ($importRows as $row) {
-                $markStmt->execute([
-                    $subId, $row['student_db_id'], $selectedSubjectId, $selectedClassId, $yearId, $termId,
-                    $row['sba'], $row['exam'], $row['total'], $row['grade'], $row['remark'], $userId
-                ]);
+                $checkExistingMark->execute([(int)$row['student_db_id'], $selectedSubjectId, $yearId, $termId]);
+                $existingId = $checkExistingMark->fetchColumn();
+
+                if ($existingId) {
+                    $updateMarkStmt->execute([
+                        $subId, $selectedClassId, $row['sba'], $row['exam'], $row['total'], $row['grade'], $row['remark'], $userId, $existingId
+                    ]);
+                } else {
+                    $insertMarkStmt->execute([
+                        $subId, (int)$row['student_db_id'], $selectedSubjectId, $selectedClassId, $yearId, $termId,
+                        $row['sba'], $row['exam'], $row['total'], $row['grade'], $row['remark'], $userId
+                    ]);
+                }
                 $imported++;
 
                 // Ensure student term report record exists for this student

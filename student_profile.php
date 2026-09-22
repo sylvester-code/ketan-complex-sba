@@ -97,24 +97,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $headRemark        = trim($_POST['head_teacher_remark'] ?? '');
 
         try {
-            $repStmt = $db->prepare("
-                INSERT INTO student_term_reports 
-                (student_id, class_id, academic_year_id, term_id, attendance_present, attendance_total, conduct, attitude, interest, class_teacher_remark, head_teacher_remark)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE 
-                    attendance_present = VALUES(attendance_present),
-                    attendance_total = VALUES(attendance_total),
-                    conduct = VALUES(conduct),
-                    attitude = VALUES(attitude),
-                    interest = VALUES(interest),
-                    class_teacher_remark = VALUES(class_teacher_remark),
-                    head_teacher_remark = VALUES(head_teacher_remark)
-            ");
-            $repStmt->execute([
-                $studentId, $student['class_id'], $yearId, $termId,
-                $attendancePresent, $attendanceTotal, $conduct, $attitude, $interest,
-                $teacherRemark, $headRemark
-            ]);
+            $checkRep = $db->prepare("SELECT id FROM student_term_reports WHERE student_id = ? AND academic_year_id = ? AND term_id = ?");
+            $checkRep->execute([$studentId, $yearId, $termId]);
+            $repId = $checkRep->fetchColumn();
+
+            if ($repId) {
+                $repStmt = $db->prepare("
+                    UPDATE student_term_reports 
+                    SET class_id = ?, attendance_present = ?, attendance_total = ?, conduct = ?, attitude = ?, interest = ?, class_teacher_remark = ?, head_teacher_remark = ?
+                    WHERE id = ?
+                ");
+                $repStmt->execute([
+                    $student['class_id'], $attendancePresent, $attendanceTotal, $conduct, $attitude, $interest,
+                    $teacherRemark, $headRemark, $repId
+                ]);
+            } else {
+                $repStmt = $db->prepare("
+                    INSERT INTO student_term_reports 
+                    (student_id, class_id, academic_year_id, term_id, attendance_present, attendance_total, conduct, attitude, interest, class_teacher_remark, head_teacher_remark)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $repStmt->execute([
+                    $studentId, $student['class_id'], $yearId, $termId,
+                    $attendancePresent, $attendanceTotal, $conduct, $attitude, $interest,
+                    $teacherRemark, $headRemark
+                ]);
+            }
 
             logActivity('UPDATE_REMARKS', "Updated terminal remarks for {$student['full_name']}", 'students', $studentId);
             flash('success', 'Terminal report comments and attendance updated successfully.');

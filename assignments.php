@@ -33,12 +33,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             flash('danger', 'Teacher, Class, and Subject must all be selected.');
         } else {
             try {
-                $stmt = $db->prepare("
-                    INSERT INTO teacher_assignments (teacher_id, class_id, subject_id, academic_year_id, is_class_teacher)
-                    VALUES (?, ?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE is_class_teacher = VALUES(is_class_teacher)
-                ");
-                $stmt->execute([$teacherId, $classId, $subjectId, $yearId, $isClassTeacher]);
+                $checkTa = $db->prepare("SELECT id FROM teacher_assignments WHERE teacher_id = ? AND class_id = ? AND subject_id = ? AND academic_year_id = ?");
+                $checkTa->execute([$teacherId, $classId, $subjectId, $yearId]);
+                $existingTaId = $checkTa->fetchColumn();
+
+                if ($existingTaId) {
+                    $stmt = $db->prepare("UPDATE teacher_assignments SET is_class_teacher = ? WHERE id = ?");
+                    $stmt->execute([$isClassTeacher, $existingTaId]);
+                } else {
+                    $stmt = $db->prepare("INSERT INTO teacher_assignments (teacher_id, class_id, subject_id, academic_year_id, is_class_teacher) VALUES (?, ?, ?, ?, ?)");
+                    $stmt->execute([$teacherId, $classId, $subjectId, $yearId, $isClassTeacher]);
+                }
                 logActivity('TEACHER_ASSIGNMENT', "Assigned teacher ID {$teacherId} to class {$classId} / subject {$subjectId}", 'teacher_assignments');
                 flash('success', 'Teacher allocation saved successfully.');
             } catch (Exception $e) {

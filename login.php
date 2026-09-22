@@ -70,8 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = 'This account has been deactivated. Please contact the school administrator.';
                 } else {
                     // Update last login
-                    $update = $db->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
-                    $update->execute([$user['id']]);
+                    $update = $db->prepare("UPDATE users SET last_login = ? WHERE id = ?");
+                    $update->execute([date('Y-m-d H:i:s'), $user['id']]);
 
                     // Set session variables
                     $_SESSION['user_id'] = (int)$user['id'];

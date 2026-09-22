@@ -31,14 +31,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     try {
         $db->beginTransaction();
 
+        $now = date('Y-m-d H:i:s');
         if ($action === 'approve') {
             // Update submission to approved
             $stmt = $db->prepare("
                 UPDATE assessment_submissions 
-                SET status = 'approved', reviewed_by = ?, reviewed_at = NOW(), review_comments = ?
+                SET status = 'approved', reviewed_by = ?, reviewed_at = ?, review_comments = ?
                 WHERE id = ?
             ");
-            $stmt->execute([$userId, $comments ?: 'Approved by School Management', $subId]);
+            $stmt->execute([$userId, $now, $comments ?: 'Approved by School Management', $subId]);
 
             // Update associated marks to approved
             $markUpdate = $db->prepare("UPDATE marks SET status = 'approved' WHERE submission_id = ?");
@@ -51,10 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             // Reopen marks so teacher can edit
             $stmt = $db->prepare("
                 UPDATE assessment_submissions 
-                SET status = 'reopened', reviewed_by = ?, reviewed_at = NOW(), review_comments = ?
+                SET status = 'reopened', reviewed_by = ?, reviewed_at = ?, review_comments = ?
                 WHERE id = ?
             ");
-            $stmt->execute([$userId, $comments ?: 'Reopened for correction', $subId]);
+            $stmt->execute([$userId, $now, $comments ?: 'Reopened for correction', $subId]);
 
             $markUpdate = $db->prepare("UPDATE marks SET status = 'reopened' WHERE submission_id = ?");
             $markUpdate->execute([$subId]);

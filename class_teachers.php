@@ -55,12 +55,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $stmt->execute([$teacherId, $now, $classId]);
 
                     // Sync class_teachers table
-                    $ctStmt = $db->prepare("
-                        INSERT INTO class_teachers (class_id, teacher_id, academic_year_id, assigned_at)
-                        VALUES (?, ?, ?, ?)
-                        ON DUPLICATE KEY UPDATE teacher_id = VALUES(teacher_id), assigned_at = VALUES(assigned_at), academic_year_id = VALUES(academic_year_id)
-                    ");
-                    $ctStmt->execute([$classId, $teacherId, $yearId, $now]);
+                    $checkCt = $db->prepare("SELECT id FROM class_teachers WHERE class_id = ? AND academic_year_id = ?");
+                    $checkCt->execute([$classId, $yearId]);
+                    $existingCtId = $checkCt->fetchColumn();
+
+                    if ($existingCtId) {
+                        $ctStmt = $db->prepare("UPDATE class_teachers SET teacher_id = ?, assigned_at = ? WHERE id = ?");
+                        $ctStmt->execute([$teacherId, $now, $existingCtId]);
+                    } else {
+                        $ctStmt = $db->prepare("INSERT INTO class_teachers (class_id, teacher_id, academic_year_id, assigned_at) VALUES (?, ?, ?, ?)");
+                        $ctStmt->execute([$classId, $teacherId, $yearId, $now]);
+                    }
 
                     logActivity('ASSIGN_CLASS_TEACHER', "Assigned {$targetTeacher['full_name']} as Class Teacher for {$targetClass['class_name']}", 'classes', $classId);
                     flash('success', "Successfully assigned <strong>{$targetTeacher['full_name']}</strong> as Class Teacher for <strong>{$targetClass['class_name']}</strong>.");
