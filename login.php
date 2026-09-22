@@ -7,12 +7,6 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$configFile = __DIR__ . '/config/db_config.php';
-if (!file_exists($configFile) && empty(getenv('DB_HOST')) && empty($_ENV['DB_HOST'])) {
-    header('Location: install.php');
-    exit;
-}
-
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/session.php';
@@ -26,6 +20,7 @@ if (isLoggedIn()) {
 $error = '';
 $installSuccess = $_SESSION['install_success'] ?? '';
 unset($_SESSION['install_success']);
+$isDbConnected = Database::isConnected();
 
 // Handle Login Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -38,9 +33,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Security session expired. Please refresh and try again.';
     } elseif (empty($login) || empty($password)) {
         $error = 'Please provide both your Username/Email and Password.';
+    } elseif (!$isDbConnected) {
+        $error = 'Database is not connected. Please configure your database credentials.';
     } else {
         try {
             $db = getDB();
+            if (!($db instanceof PDO)) {
+                throw new Exception('Database connection unavailable.');
+            }
             
             // Search by username, email, or admin alias (case-insensitive)
             $stmt = $db->prepare("
@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Log failed attempt
                 logActivity('LOGIN_FAILED', "Failed login attempt for identifier: {$login}");
             }
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $error = 'Database service error: ' . $e->getMessage();
         }
     }
@@ -281,6 +281,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <div class="login-body">
+        <?php if (!$isDbConnected): ?>
+            <div class="alert alert-warning d-flex align-items-start gap-2 small mb-3 border-0 bg-warning-subtle text-warning-emphasis shadow-sm p-2 rounded-3">
+                <i class="bi bi-database-exclamation fs-5 flex-shrink-0 text-warning"></i>
+                <div style="font-size: 0.8rem; line-height: 1.35;">
+                    <strong>Cloud Database Notice:</strong> Remote MySQL database is not connected. If hosting on Vercel, set your database environment variables (<code>DATABASE_URL</code> or <code>DB_HOST</code>, <code>DB_NAME</code>, <code>DB_USER</code>, <code>DB_PASS</code>) in Project Settings.
+                </div>
+            </div>
+        <?php endif; ?>
+
         <?php if ($installSuccess): ?>
             <div class="alert alert-success d-flex align-items-center gap-2 small mb-3">
                 <i class="bi bi-check-circle-fill"></i>

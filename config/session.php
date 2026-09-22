@@ -79,6 +79,9 @@ function requireRole(array|string $roles): void {
 function logActivity(string $action, string $description, ?string $entityType = null, ?int $entityId = null): void {
     try {
         $db = getDB();
+        if (!($db instanceof PDO)) {
+            return;
+        }
         $stmt = $db->prepare("
             INSERT INTO audit_logs (user_id, username, role, action, entity_type, entity_id, description, ip_address, user_agent)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -101,7 +104,7 @@ function logActivity(string $action, string $description, ?string $entityType = 
             $ip,
             $agent
         ]);
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         // Suppress audit log failure so main operation doesn't crash
         error_log("Audit log failed: " . $e->getMessage());
     }

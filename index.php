@@ -7,14 +7,6 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$configFile = __DIR__ . '/config/db_config.php';
-
-// If configuration doesn't exist locally or in environment, redirect to installer
-if (!file_exists($configFile) && empty(getenv('DB_HOST')) && empty($_ENV['DB_HOST'])) {
-    header('Location: install.php');
-    exit;
-}
-
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/session.php';

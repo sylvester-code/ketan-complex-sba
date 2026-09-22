@@ -131,12 +131,14 @@ function getSetting(string $key, string $default = ''): string
         $settingsCache = [];
         try {
             $db = getDB();
-            $stmt = $db->query("SELECT setting_key, setting_value FROM system_settings");
-            while ($row = $stmt->fetch()) {
-                $settingsCache[$row['setting_key']] = $row['setting_value'];
+            if ($db instanceof PDO) {
+                $stmt = $db->query("SELECT setting_key, setting_value FROM system_settings");
+                while ($row = $stmt->fetch()) {
+                    $settingsCache[$row['setting_key']] = $row['setting_value'];
+                }
             }
-        } catch (Exception $e) {
-            // DB might be uninitialized
+        } catch (Throwable $e) {
+            // DB might be uninitialized or disconnected
         }
     }
     return $settingsCache[$key] ?? $default;
@@ -151,9 +153,11 @@ function getActiveAcademicYear(): ?array
     if ($year === null) {
         try {
             $db = getDB();
-            $stmt = $db->query("SELECT * FROM academic_years WHERE is_active = 1 LIMIT 1");
-            $year = $stmt->fetch() ?: null;
-        } catch (Exception $e) {
+            if ($db instanceof PDO) {
+                $stmt = $db->query("SELECT * FROM academic_years WHERE is_active = 1 LIMIT 1");
+                $year = $stmt->fetch() ?: null;
+            }
+        } catch (Throwable $e) {
             $year = null;
         }
     }
@@ -169,27 +173,29 @@ function getActiveTerm(): ?array
     if ($term === null) {
         try {
             $db = getDB();
-            $stmt = $db->query("
-                SELECT t.*, y.year_name 
-                FROM terms t 
-                JOIN academic_years y ON t.academic_year_id = y.id 
-                WHERE t.is_active = 1 AND y.is_active = 1 
-                LIMIT 1
-            ");
-            $term = $stmt->fetch() ?: null;
-            if (!$term) {
-                // Fallback to first term of active year
+            if ($db instanceof PDO) {
                 $stmt = $db->query("
                     SELECT t.*, y.year_name 
                     FROM terms t 
                     JOIN academic_years y ON t.academic_year_id = y.id 
-                    WHERE y.is_active = 1 
-                    ORDER BY t.id ASC 
+                    WHERE t.is_active = 1 AND y.is_active = 1 
                     LIMIT 1
                 ");
                 $term = $stmt->fetch() ?: null;
+                if (!$term) {
+                    // Fallback to first term of active year
+                    $stmt = $db->query("
+                        SELECT t.*, y.year_name 
+                        FROM terms t 
+                        JOIN academic_years y ON t.academic_year_id = y.id 
+                        WHERE y.is_active = 1 
+                        ORDER BY t.id ASC 
+                        LIMIT 1
+                    ");
+                    $term = $stmt->fetch() ?: null;
+                }
             }
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $term = null;
         }
     }
@@ -203,11 +209,14 @@ function getGradingScale(): array
 {
     static $scale = null;
     if ($scale === null) {
+        $scale = [];
         try {
             $db = getDB();
-            $stmt = $db->query("SELECT * FROM grading_scale ORDER BY display_order ASC, min_score DESC");
-            $scale = $stmt->fetchAll();
-        } catch (Exception $e) {
+            if ($db instanceof PDO) {
+                $stmt = $db->query("SELECT * FROM grading_scale ORDER BY display_order ASC, min_score DESC");
+                $scale = $stmt->fetchAll() ?: [];
+            }
+        } catch (Throwable $e) {
             $scale = [];
         }
     }
@@ -292,22 +301,29 @@ function getDefaultHeadTeacherRemark(float $averageScore, string $grade): string
  */
 function generateNextStudentId(?int $academicYear = null): string
 {
-    $db = getDB();
     $year = $academicYear ? (string) $academicYear : date('Y');
     $prefix = "KCM-{$year}-";
 
-    $stmt = $db->prepare("SELECT student_id FROM students WHERE student_id LIKE ? ORDER BY id DESC LIMIT 1");
-    $stmt->execute([$prefix . '%']);
-    $last = $stmt->fetchColumn();
+    try {
+        $db = getDB();
+        if ($db instanceof PDO) {
+            $stmt = $db->prepare("SELECT student_id FROM students WHERE student_id LIKE ? ORDER BY id DESC LIMIT 1");
+            $stmt->execute([$prefix . '%']);
+            $last = $stmt->fetchColumn();
 
-    if ($last) {
-        $num = (int) substr($last, strlen($prefix));
-        $nextNum = str_pad((string) ($num + 1), 4, '0', STR_PAD_LEFT);
-    } else {
-        $nextNum = '0001';
+            if ($last) {
+                $num = (int) substr($last, strlen($prefix));
+                $nextNum = str_pad((string) ($num + 1), 4, '0', STR_PAD_LEFT);
+            } else {
+                $nextNum = '0001';
+            }
+            return $prefix . $nextNum;
+        }
+    } catch (Throwable $e) {
+        // Fallback
     }
 
-    return $prefix . $nextNum;
+    return $prefix . '0001';
 }
 
 /**
@@ -328,6 +344,9 @@ function getAssignedClassTeacher(int $classId): ?array
 {
     try {
         $db = getDB();
+        if (!($db instanceof PDO)) {
+            return null;
+        }
         $stmt = $db->prepare("
             SELECT u.id, u.full_name, u.email, u.phone, u.signature, c.class_name, c.class_teacher_assigned_at
             FROM classes c
@@ -351,7 +370,7 @@ function getAssignedClassTeacher(int $classId): ?array
         ");
         $stmt2->execute([$classId]);
         return $stmt2->fetch() ?: null;
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         return null;
     }
 }
@@ -363,6 +382,9 @@ function getTeacherAssignedClass(int $teacherId): ?array
 {
     try {
         $db = getDB();
+        if (!($db instanceof PDO)) {
+            return null;
+        }
         $stmt = $db->prepare("
             SELECT c.id, c.class_name, c.class_code, c.display_order, c.class_teacher_assigned_at
             FROM classes c
@@ -384,7 +406,7 @@ function getTeacherAssignedClass(int $teacherId): ?array
         ");
         $stmt2->execute([$teacherId]);
         return $stmt2->fetch() ?: null;
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         return null;
     }
 }
