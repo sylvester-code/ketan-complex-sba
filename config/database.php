@@ -41,6 +41,11 @@ class Database {
             PDO::ATTR_EMULATE_PREPARES   => false,
         ];
 
+        // Support cloud databases requiring SSL (e.g. TiDB, Aiven, PlanetScale)
+        if (getenv('DB_SSL') || getenv('MYSQL_ATTR_SSL_CA') || $this->port === '4000') {
+            $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+        }
+
         try {
             $this->connection = new PDO($dsn, $this->user, $this->pass, $options);
         } catch (PDOException $e) {

@@ -23,10 +23,20 @@ define('SIGNATURE_UPLOAD_DIR', BASE_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRE
  */
 function getBaseUrl(): string
 {
-    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') 
+        || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)
+        || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+        
+    $protocol = $isHttps ? "https://" : "http://";
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $scriptDir = dirname($_SERVER['SCRIPT_NAME'] ?? '');
     $basePath = rtrim(str_replace('\\', '/', $scriptDir), '/');
+    
+    // On Vercel serverless /api entrypoint or root domain, basePath should be empty
+    if ($basePath === '.' || $basePath === '/' || $basePath === '/api') {
+        $basePath = '';
+    }
+    
     return $protocol . $host . $basePath;
 }
 
