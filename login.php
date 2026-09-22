@@ -8,7 +8,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 $configFile = __DIR__ . '/config/db_config.php';
-if (!file_exists($configFile)) {
+if (!file_exists($configFile) && empty(getenv('DB_HOST')) && empty($_ENV['DB_HOST'])) {
     header('Location: install.php');
     exit;
 }

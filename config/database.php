@@ -16,9 +16,16 @@ class Database {
     private string $charset = 'utf8mb4';
 
     private function __construct() {
-        // Load custom config file if exists
+        // 1. Check Environment Variables (for Vercel / Cloud Deployments)
+        $this->host = getenv('DB_HOST') ?: ($_ENV['DB_HOST'] ?? ($_SERVER['DB_HOST'] ?? $this->host));
+        $this->dbname = getenv('DB_NAME') ?: ($_ENV['DB_NAME'] ?? ($_SERVER['DB_NAME'] ?? $this->dbname));
+        $this->user = getenv('DB_USER') ?: ($_ENV['DB_USER'] ?? ($_SERVER['DB_USER'] ?? $this->user));
+        $this->pass = getenv('DB_PASS') ?: ($_ENV['DB_PASS'] ?? ($_SERVER['DB_PASS'] ?? $this->pass));
+        $this->port = getenv('DB_PORT') ?: ($_ENV['DB_PORT'] ?? ($_SERVER['DB_PORT'] ?? $this->port));
+
+        // 2. Load custom config file if exists (for local development fallback)
         $customConfigFile = __DIR__ . '/db_config.php';
-        if (file_exists($customConfigFile)) {
+        if (file_exists($customConfigFile) && empty(getenv('DB_HOST'))) {
             $custom = require $customConfigFile;
             $this->host = $custom['host'] ?? $this->host;
             $this->dbname = $custom['dbname'] ?? $this->dbname;
