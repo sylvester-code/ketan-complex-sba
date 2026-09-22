@@ -1,0 +1,228 @@
+/* ==========================================================
+   KETAN M/A B COMPLEX - Official A4 Print Stylesheet
+   Dimensions: A4 Portrait (210mm x 297mm)
+   Ensures single-page terminal report card fitting with 100% scale.
+   ========================================================== */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 8mm 10mm;
+  }
+
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  html, body {
+    width: 210mm !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 9.5pt !important;
+    line-height: 1.3 !important;
+  }
+
+  /* Hide navigation, toolbars, buttons, flashes */
+  .app-sidebar,
+  .app-topbar,
+  .no-print,
+  .btn,
+  .alert,
+  nav,
+  footer {
+    display: none !important;
+  }
+
+  .app-main, .app-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Exact A4 Portrait Container */
+  .report-card-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 2mm 3mm !important;
+    border: 2px solid #0f2942 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .report-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    border-bottom: 2.5px double #0f2942 !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .report-crest {
+    width: 68px !important;
+    height: 68px !important;
+    object-fit: contain !important;
+  }
+
+  .student-photo-card {
+    width: 68px !important;
+    height: 75px !important;
+    object-fit: cover !important;
+  }
+
+  .report-school-title {
+    text-align: center !important;
+    flex-grow: 1 !important;
+    padding: 0 10px !important;
+  }
+
+  .report-school-title h2 {
+    font-size: 1.32rem !important;
+    font-weight: 900 !important;
+    color: #0f2942 !important;
+    margin-bottom: 1px !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  .report-school-title .motto {
+    font-style: italic !important;
+    font-size: 0.74rem !important;
+    color: #b45309 !important;
+    font-weight: 600 !important;
+    margin-bottom: 1px !important;
+  }
+
+  .report-school-title .address {
+    font-size: 0.68rem !important;
+    color: #334155 !important;
+    line-height: 1.2 !important;
+  }
+
+  .report-title-banner {
+    background: #0f2942 !important;
+    color: #ffffff !important;
+    padding: 3.5px !important;
+    font-weight: 800 !important;
+    font-size: 0.82rem !important;
+    text-align: center !important;
+    border-radius: 2px !important;
+    letter-spacing: 1.2px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .student-meta-box {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 4px 8px !important;
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 3px !important;
+    padding: 5px 8px !important;
+    margin-bottom: 6px !important;
+    font-size: 0.76rem !important;
+  }
+
+  .student-meta-item strong {
+    display: block !important;
+    font-size: 0.62rem !important;
+    text-transform: uppercase !important;
+    color: #64748b !important;
+    margin-bottom: 1px !important;
+  }
+
+  .table-report {
+    width: 100% !important;
+    margin-bottom: 6px !important;
+    font-size: 0.74rem !important;
+    border-collapse: collapse !important;
+  }
+
+  .table-report th {
+    background: #0f2942 !important;
+    color: #ffffff !important;
+    border: 1px solid #0f2942 !important;
+    padding: 3px 5px !important;
+    font-size: 0.72rem !important;
+  }
+
+  .table-report td {
+    border: 1px solid #94a3b8 !important;
+    padding: 2px 5px !important;
+    line-height: 1.15 !important;
+  }
+
+  .summary-metrics-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 5px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .summary-metric-card {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 3px !important;
+    padding: 4px !important;
+    text-align: center !important;
+    background: #f8fafc !important;
+  }
+
+  .summary-metric-card .label {
+    font-size: 0.62rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    color: #64748b !important;
+  }
+
+  .summary-metric-card .val {
+    font-size: 0.98rem !important;
+    font-weight: 800 !important;
+    color: #0f2942 !important;
+  }
+
+  .conduct-box {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 3px !important;
+    padding: 4px 6px !important;
+    background: #fafafa !important;
+    font-size: 0.72rem !important;
+    margin-bottom: 6px !important;
+  }
+
+  .remarks-box {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 3px !important;
+    padding: 5px 8px !important;
+    font-size: 0.74rem !important;
+    margin-bottom: 6px !important;
+  }
+
+  .signature-box {
+    margin-top: 6px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .signature-slot {
+    height: 46px !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: center !important;
+    margin-bottom: 2px !important;
+  }
+
+  .signature-slot img {
+    max-height: 44px !important;
+    max-width: 170px !important;
+    object-fit: contain !important;
+  }
+}

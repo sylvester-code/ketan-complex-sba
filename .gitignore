@@ -1,0 +1,11 @@
+# Environment & local configs
+config/db_config.php.local
+*.log
+.DS_Store
+Thumbs.db
+
+# Keep uploads folder structure
+uploads/students/*
+!uploads/students/.gitkeep
+uploads/signatures/*
+!uploads/signatures/.gitkeep
