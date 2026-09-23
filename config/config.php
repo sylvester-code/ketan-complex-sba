@@ -17,6 +17,7 @@ define('BASE_DIR', dirname(__DIR__));
 define('UPLOAD_DIR', BASE_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'students');
 define('LOGO_UPLOAD_DIR', BASE_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'logo');
 define('SIGNATURE_UPLOAD_DIR', BASE_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'signatures');
+define('BACKGROUND_UPLOAD_DIR', BASE_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'backgrounds');
 
 /**
  * Determine dynamic base URL
@@ -84,6 +85,44 @@ function getSchoolLogoUrl(): string
     }
 
     return asset('images/logo.svg');
+}
+
+/**
+ * Get Login Background Image URL (Custom uploaded photo or default school building photo)
+ */
+function getLoginBgUrl(): string
+{
+    // 1. Check database system setting if configured
+    $customBg = getSetting('login_background');
+    if (!empty($customBg)) {
+        $bgFile = BACKGROUND_UPLOAD_DIR . DIRECTORY_SEPARATOR . $customBg;
+        if (file_exists($bgFile)) {
+            return url('uploads/backgrounds/' . $customBg) . '?v=' . filemtime($bgFile);
+        }
+    }
+
+    // 2. Check if uploaded background exists in uploads/backgrounds directory
+    if (is_dir(BACKGROUND_UPLOAD_DIR)) {
+        $files = glob(BACKGROUND_UPLOAD_DIR . DIRECTORY_SEPARATOR . '*.{jpg,jpeg,png,webp,svg,JPG,JPEG,PNG}', GLOB_BRACE);
+        if (!empty($files)) {
+            usort($files, fn($a, $b) => filemtime($b) - filemtime($a));
+            $latest = basename($files[0]);
+            return url('uploads/backgrounds/' . $latest) . '?v=' . filemtime($files[0]);
+        }
+    }
+
+    // 3. Check assets fallback (school_building.jpg or login_bg.jpg)
+    $assetBg = BASE_DIR . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'school_building.jpg';
+    if (file_exists($assetBg)) {
+        return asset('images/school_building.jpg') . '?v=' . filemtime($assetBg);
+    }
+
+    $loginBg = BASE_DIR . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'login_bg.jpg';
+    if (file_exists($loginBg)) {
+        return asset('images/login_bg.jpg') . '?v=' . filemtime($loginBg);
+    }
+
+    return '';
 }
 
 /**

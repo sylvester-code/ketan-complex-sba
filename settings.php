@@ -205,6 +205,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         header('Location: ' . $redirect);
         exit;
 
+    } elseif ($action === 'upload_login_bg') {
+        if (!isAdmin()) {
+            flash('danger', 'Unauthorized action.');
+            header('Location: settings.php');
+            exit;
+        }
+
+        if (isset($_FILES['login_background']) && $_FILES['login_background']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['login_background'];
+            $allowedExts = ['png', 'jpg', 'jpeg', 'webp'];
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+            if (!in_array($ext, $allowedExts)) {
+                flash('danger', 'Invalid image format. Allowed formats: PNG, JPG, JPEG, WebP.');
+            } elseif ($file['size'] > 10 * 1024 * 1024) {
+                flash('danger', 'Image size must not exceed 10MB.');
+            } else {
+                if (!is_dir(BACKGROUND_UPLOAD_DIR)) {
+                    mkdir(BACKGROUND_UPLOAD_DIR, 0777, true);
+                }
+                $filename = 'login_bg_' . time() . '.' . $ext;
+                $target = BACKGROUND_UPLOAD_DIR . DIRECTORY_SEPARATOR . $filename;
+
+                if (move_uploaded_file($file['tmp_name'], $target)) {
+                    $checkBg = $db->prepare("SELECT id FROM system_settings WHERE setting_key = 'login_background'");
+                    $checkBg->execute();
+                    if ($checkBg->fetchColumn()) {
+                        $stmt = $db->prepare("UPDATE system_settings SET setting_value = ? WHERE setting_key = 'login_background'");
+                    } else {
+                        $stmt = $db->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES ('login_background', ?)");
+                    }
+                    $stmt->execute([$filename]);
+                    logActivity('UPLOAD_LOGIN_BG', 'Uploaded new login background photo', 'system_settings');
+                    flash('success', 'Login background image successfully updated!');
+                } else {
+                    flash('danger', 'Failed to save background image file. Check directory permissions.');
+                }
+            }
+        } else {
+            flash('danger', 'Please select a valid image file to upload.');
+        }
+
+        $redirect = !empty($_POST['redirect_to']) ? $_POST['redirect_to'] : 'settings.php';
+        header('Location: ' . $redirect);
+        exit;
+
+    } elseif ($action === 'reset_login_bg') {
+        if (!isAdmin()) {
+            flash('danger', 'Unauthorized action.');
+            header('Location: settings.php');
+            exit;
+        }
+
+        $stmt = $db->prepare("DELETE FROM system_settings WHERE setting_key = 'login_background'");
+        $stmt->execute();
+        logActivity('RESET_LOGIN_BG', 'Reset login background to default school building photo', 'system_settings');
+        flash('success', 'Login background has been reset to the default school building photo.');
+
+        $redirect = !empty($_POST['redirect_to']) ? $_POST['redirect_to'] : 'settings.php';
+        header('Location: ' . $redirect);
+        exit;
+
     } elseif ($action === 'update_grading_scale') {
         $tiers = $_POST['scale'] ?? [];
         try {
@@ -242,47 +304,84 @@ require_once __DIR__ . '/includes/navbar.php';
 </div>
 
 <div class="row g-4">
-    <!-- School Logo Customization Card (Full Width or Top of Left Column) -->
-    <div class="col-12">
-        <div class="card-custom mb-2 border shadow-sm">
+    <!-- School Logo Customization Card -->
+    <div class="col-lg-6">
+        <div class="card-custom mb-2 border shadow-sm h-100">
             <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <span class="fw-bold fs-6"><i class="bi bi-image-fill text-primary me-2"></i>Official School Crest / Logo Customization</span>
-                <span class="badge bg-light text-muted border">Supported: PNG, JPG, JPEG, SVG, WebP (Max 5MB)</span>
+                <span class="fw-bold fs-6"><i class="bi bi-image-fill text-primary me-2"></i>Official School Crest / Logo</span>
+                <span class="badge bg-light text-muted border">Max 5MB</span>
             </div>
             <div class="card-body p-4">
-                <div class="row align-items-center g-4">
-                    <div class="col-md-3 text-center">
-                        <div class="p-3 border rounded-3 bg-light d-inline-block shadow-sm" style="min-width: 150px; min-height: 150px;">
-                            <img src="<?= getSchoolLogoUrl() ?>" alt="Current School Logo" id="logoPreview" style="max-width: 130px; max-height: 130px; object-fit: contain;">
-                        </div>
-                        <div class="small text-muted mt-2 fw-bold">Active System Crest</div>
+                <div class="d-flex flex-column align-items-center mb-3">
+                    <div class="p-3 border rounded-3 bg-light d-inline-block shadow-sm mb-2" style="min-width: 140px; min-height: 140px; display: flex; align-items: center; justify-content: center;">
+                        <img src="<?= getSchoolLogoUrl() ?>" alt="Current School Logo" id="logoPreview" style="max-width: 120px; max-height: 120px; object-fit: contain;">
                     </div>
-                    <div class="col-md-9">
-                        <form method="POST" action="settings.php" enctype="multipart/form-data">
-                            <?= csrfField() ?>
-                            <input type="hidden" name="action" value="upload_school_logo">
-
-                            <div class="mb-3">
-                                <label class="form-label small fw-bold">Upload Custom School Logo File <span class="text-danger">*</span></label>
-                                <input type="file" name="school_logo" id="logoInput" class="form-control" accept="image/png,image/jpeg,image/webp,image/svg+xml" required onchange="previewLogo(this)">
-                                <div class="form-text small">
-                                    <i class="bi bi-info-circle me-1 text-primary"></i> Uploading a custom picture here automatically updates the school crest across the <strong>Top Navbar</strong>, <strong>Sidebar Menu</strong>, <strong>Login Page</strong>, and all <strong>Printable Student Terminal Report Cards</strong> & <strong>Broadsheets</strong>.
-                                </div>
-                            </div>
-
-                            <div class="d-flex flex-wrap gap-2">
-                                <button type="submit" class="btn btn-primary-custom px-4">
-                                    <i class="bi bi-cloud-arrow-up-fill me-1"></i> Upload & Apply School Logo
-                                </button>
-                                <?php if (!empty(getSetting('school_logo'))): ?>
-                                    <button type="submit" name="action" value="reset_school_logo" class="btn btn-outline-secondary px-3" onclick="return confirm('Reset the school logo back to the default vector crest?');">
-                                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset to Default Logo
-                                    </button>
-                                <?php endif; ?>
-                            </div>
-                        </form>
-                    </div>
+                    <div class="small text-muted fw-bold">Active Crest & Favicon</div>
                 </div>
+                <form method="POST" action="settings.php" enctype="multipart/form-data">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="action" value="upload_school_logo">
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Upload New Crest File</label>
+                        <input type="file" name="school_logo" id="logoInput" class="form-control form-control-sm" accept="image/png,image/jpeg,image/webp,image/svg+xml" required onchange="previewLogo(this)">
+                        <div class="form-text small" style="font-size: 0.76rem;">
+                            Updates logo & favicon on portal header, sidebar, report cards & login.
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-primary-custom btn-sm px-3">
+                            <i class="bi bi-cloud-arrow-up-fill me-1"></i> Apply Logo
+                        </button>
+                        <?php if (!empty(getSetting('school_logo'))): ?>
+                            <button type="submit" name="action" value="reset_school_logo" class="btn btn-outline-secondary btn-sm px-3" onclick="return confirm('Reset the school logo back to default?');">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Panel Background Image Customization Card -->
+    <div class="col-lg-6">
+        <div class="card-custom mb-2 border shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span class="fw-bold fs-6"><i class="bi bi-buildings-fill text-primary me-2"></i>Login Panel Background Image</span>
+                <span class="badge bg-light text-muted border">Max 10MB</span>
+            </div>
+            <div class="card-body p-4">
+                <div class="d-flex flex-column align-items-center mb-3">
+                    <div class="border rounded-3 overflow-hidden shadow-sm mb-2" style="width: 100%; max-width: 280px; height: 140px; background: #0c1f2c;">
+                        <img src="<?= getLoginBgUrl() ?: asset('images/school_building.jpg') ?>" alt="Current Login Background" id="loginBgPreview" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    <div class="small text-muted fw-bold">Active Login Screen Backdrop</div>
+                </div>
+                <form method="POST" action="settings.php" enctype="multipart/form-data">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="action" value="upload_login_bg">
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Upload New Background Photo</label>
+                        <input type="file" name="login_background" id="loginBgInput" class="form-control form-control-sm" accept="image/png,image/jpeg,image/webp" required onchange="previewLoginBg(this)">
+                        <div class="form-text small" style="font-size: 0.76rem;">
+                            Shown as the backdrop on the school's authentication portal login screen.
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-primary-custom btn-sm px-3">
+                            <i class="bi bi-cloud-arrow-up-fill me-1"></i> Apply Background
+                        </button>
+                        <?php if (!empty(getSetting('login_background'))): ?>
+                            <button type="submit" name="action" value="reset_login_bg" class="btn btn-outline-secondary btn-sm px-3" onclick="return confirm('Reset the login background back to the default school building photo?');">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset to Default
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -467,6 +566,16 @@ function previewLogo(input) {
         const reader = new FileReader();
         reader.onload = function(e) {
             const preview = document.getElementById('logoPreview');
+            if (preview) preview.src = e.target.result;
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+function previewLoginBg(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('loginBgPreview');
             if (preview) preview.src = e.target.result;
         }
         reader.readAsDataURL(input.files[0]);

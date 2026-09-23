@@ -119,7 +119,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background: radial-gradient(ellipse at 15% 25%, #0c1f2c 0%, #081620 45%, #0e2538 100%);
+            background: linear-gradient(135deg, rgba(8, 22, 34, 0.72) 0%, rgba(12, 31, 46, 0.82) 100%),
+                        url('<?= getLoginBgUrl() ?: 'assets/images/school_building.jpg' ?>') no-repeat center center fixed;
+            background-size: cover;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -127,16 +129,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 1.5rem;
             color: #1e293b;
             position: relative;
-            overflow: hidden;
+            overflow-x: hidden;
         }
         /* Subtle background aurora orbs */
         body::before {
             content: '';
             position: fixed;
             top: -120px; right: -80px;
-            width: 380px; height: 380px;
+            width: 420px; height: 420px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(0,212,170,.08) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(0,212,170,.12) 0%, transparent 70%);
             pointer-events: none;
             animation: loginOrbFloat 10s ease-in-out infinite;
         }
@@ -144,9 +146,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             content: '';
             position: fixed;
             bottom: -100px; left: -60px;
-            width: 320px; height: 320px;
+            width: 380px; height: 380px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(99,102,241,.06) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(99,102,241,.10) 0%, transparent 70%);
             pointer-events: none;
             animation: loginOrbFloat 12s ease-in-out infinite reverse;
         }
@@ -155,16 +157,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             50%     { transform: translate(20px,-16px) scale(1.05); }
         }
 
+        .login-wrapper {
+            width: 100%;
+            max-width: 440px;
+            position: relative;
+            z-index: 2;
+        }
         .login-card {
-            background: #ffffff;
-            border-radius: 22px;
-            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,.06);
-            max-width: 430px;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255,255,255,.2);
             width: 100%;
             overflow: hidden;
             position: relative;
-            z-index: 1;
-            animation: loginCardRise .5s ease;
+            animation: loginCardRise .5s cubic-bezier(0.16, 1, 0.3, 1);
         }
         @keyframes loginCardRise {
             from { opacity:0; transform:translateY(24px) scale(.97); }
@@ -285,67 +294,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 
-<div class="login-card">
-    <div class="login-header">
-        <img src="<?= getSchoolLogoUrl() ?>" alt="KETAN M/A B COMPLEX Logo" class="school-crest">
-        <h1 class="brand-title" style="font-size: 1.35rem; letter-spacing: 0.5px;">KETAN M/A B COMPLEX</h1>
-        <div class="brand-tagline">School-Based Assessment & Performance System</div>
+<div class="login-wrapper">
+    <div class="login-card">
+        <div class="login-header">
+            <img src="<?= getSchoolLogoUrl() ?>" alt="KETAN M/A B COMPLEX Logo" class="school-crest">
+            <h1 class="brand-title" style="font-size: 1.35rem; letter-spacing: 0.5px;">KETAN M/A B COMPLEX</h1>
+            <div class="brand-tagline">School-Based Assessment & Performance System</div>
+        </div>
+
+        <div class="login-body">
+            <?php if (!$isDbConnected): ?>
+                <div class="alert alert-warning d-flex align-items-start gap-2 small mb-3 border-0 bg-warning-subtle text-warning-emphasis shadow-sm p-2 rounded-3">
+                    <i class="bi bi-database-exclamation fs-5 flex-shrink-0 text-warning"></i>
+                    <div style="font-size: 0.8rem; line-height: 1.35;">
+                        <strong>Cloud Database Notice:</strong> Remote MySQL database is not connected. If hosting on Vercel, set your database environment variables (<code>DATABASE_URL</code> or <code>DB_HOST</code>, <code>DB_NAME</code>, <code>DB_USER</code>, <code>DB_PASS</code>) in Project Settings.
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($installSuccess): ?>
+                <div class="alert alert-success d-flex align-items-center gap-2 small mb-3">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <div><?= htmlspecialchars($installSuccess) ?></div>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($error): ?>
+                <div class="alert alert-danger d-flex align-items-center gap-2 small mb-3">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <div><?= htmlspecialchars($error) ?></div>
+                </div>
+            <?php endif; ?>
+
+            <form method="POST" action="login.php">
+                <?= csrfField() ?>
+
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" id="usernameInput" name="username" placeholder="Username or Email" required autofocus>
+                    <label for="usernameInput"><i class="bi bi-person me-2"></i>Username or Email</label>
+                </div>
+
+                <div class="form-floating mb-3">
+                    <input type="password" class="form-control" id="passwordInput" name="password" placeholder="Password" required>
+                    <label for="passwordInput"><i class="bi bi-lock me-2"></i>Password</label>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="rememberMe">
+                        <label class="form-check-label small text-muted" for="rememberMe">Remember me</label>
+                    </div>
+                    <span class="small text-muted">Academic Portal</span>
+                </div>
+
+                <button type="submit" class="btn btn-login w-100 mb-2">
+                    <i class="bi bi-box-arrow-in-right me-2"></i> Login to System
+                </button>
+            </form>
+
+            <div class="mt-4 pt-3 border-top text-center text-muted small">
+                <div><strong><?= htmlspecialchars(getSetting('school_name', 'KETAN M/A B COMPLEX')) ?></strong></div>
+                <div style="font-size: 0.76rem;"><?= htmlspecialchars(getSetting('school_tagline', 'School-Based Assessment & Performance Management System')) ?></div>
+            </div>
+        </div>
     </div>
 
-    <div class="login-body">
-        <?php if (!$isDbConnected): ?>
-            <div class="alert alert-warning d-flex align-items-start gap-2 small mb-3 border-0 bg-warning-subtle text-warning-emphasis shadow-sm p-2 rounded-3">
-                <i class="bi bi-database-exclamation fs-5 flex-shrink-0 text-warning"></i>
-                <div style="font-size: 0.8rem; line-height: 1.35;">
-                    <strong>Cloud Database Notice:</strong> Remote MySQL database is not connected. If hosting on Vercel, set your database environment variables (<code>DATABASE_URL</code> or <code>DB_HOST</code>, <code>DB_NAME</code>, <code>DB_USER</code>, <code>DB_PASS</code>) in Project Settings.
-                </div>
-            </div>
-        <?php endif; ?>
-
-        <?php if ($installSuccess): ?>
-            <div class="alert alert-success d-flex align-items-center gap-2 small mb-3">
-                <i class="bi bi-check-circle-fill"></i>
-                <div><?= htmlspecialchars($installSuccess) ?></div>
-            </div>
-        <?php endif; ?>
-
-        <?php if ($error): ?>
-            <div class="alert alert-danger d-flex align-items-center gap-2 small mb-3">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-                <div><?= htmlspecialchars($error) ?></div>
-            </div>
-        <?php endif; ?>
-
-        <form method="POST" action="login.php">
-            <?= csrfField() ?>
-
-            <div class="form-floating mb-3">
-                <input type="text" class="form-control" id="usernameInput" name="username" placeholder="Username or Email" required autofocus>
-                <label for="usernameInput"><i class="bi bi-person me-2"></i>Username or Email</label>
-            </div>
-
-            <div class="form-floating mb-3">
-                <input type="password" class="form-control" id="passwordInput" name="password" placeholder="Password" required>
-                <label for="passwordInput"><i class="bi bi-lock me-2"></i>Password</label>
-            </div>
-
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="rememberMe">
-                    <label class="form-check-label small text-muted" for="rememberMe">Remember me</label>
-                </div>
-                <span class="small text-muted">Academic Portal</span>
-            </div>
-
-            <button type="submit" class="btn btn-login w-100 mb-2">
-                <i class="bi bi-box-arrow-in-right me-2"></i> Login to System
-            </button>
-        </form>
-
-        <div class="mt-4 pt-3 border-top text-center text-muted small">
-            <div><strong><?= htmlspecialchars(getSetting('school_name', 'KETAN M/A B COMPLEX')) ?></strong></div>
-            <div style="font-size: 0.76rem;"><?= htmlspecialchars(getSetting('school_tagline', 'School-Based Assessment & Performance Management System')) ?></div>
-        </div>
+    <!-- School Location & Building Badge -->
+    <div class="text-center mt-3 small">
+        <span class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill text-white shadow-sm" style="background: rgba(12, 31, 44, 0.75); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.18); font-size: 0.8rem; letter-spacing: 0.3px;">
+            <i class="bi bi-geo-alt-fill text-warning"></i> Ketan St. M.A. 'B' Complex JHS &bull; P. O. Box 23, Ketan
+        </span>
     </div>
 </div>
 
