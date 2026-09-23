@@ -27,7 +27,7 @@ $year = getActiveAcademicYear();
             <!-- Quick Global Student Search -->
             <form action="<?= url('students.php') ?>" method="GET" class="d-none d-md-flex align-items-center">
                 <div class="input-group input-group-sm" style="width: 240px;">
-                    <input type="text" name="q" class="form-control" placeholder="Search student or ID..." value="<?= htmlspecialchars($_GET['q'] ?? '') ?>">
+                    <input type="text" name="q" class="form-control" placeholder="Search student name..." value="<?= htmlspecialchars($_GET['q'] ?? '') ?>">
                     <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
                 </div>
             </form>

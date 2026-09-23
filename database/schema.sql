@@ -118,7 +118,6 @@ CREATE TABLE `teacher_assignments` (
 DROP TABLE IF EXISTS `students`;
 CREATE TABLE `students` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `student_id` VARCHAR(50) NOT NULL UNIQUE,
   `full_name` VARCHAR(100) NOT NULL,
   `gender` ENUM('Male', 'Female') NOT NULL,
   `date_of_birth` DATE NOT NULL,
@@ -127,7 +126,6 @@ CREATE TABLE `students` (
   `parent_name` VARCHAR(100) DEFAULT NULL,
   `parent_phone` VARCHAR(30) DEFAULT NULL,
   `address` TEXT DEFAULT NULL,
-  `photo` VARCHAR(255) DEFAULT NULL,
   `admission_date` DATE DEFAULT NULL,
   `status` ENUM('active', 'inactive', 'transferred', 'graduated') NOT NULL DEFAULT 'active',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

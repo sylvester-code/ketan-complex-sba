@@ -29,7 +29,7 @@ $subjectsStmt = $db->query("SELECT id, subject_name, subject_code FROM subjects 
 $subjects = $subjectsStmt->fetchAll();
 
 // Fetch Students in Class
-$studentsStmt = $db->prepare("SELECT id, student_id, full_name, gender FROM students WHERE class_id = ? AND status = 'active' ORDER BY full_name ASC");
+$studentsStmt = $db->prepare("SELECT id, full_name, gender FROM students WHERE class_id = ? AND status = 'active' ORDER BY full_name ASC");
 $studentsStmt->execute([$selectedClassId]);
 $students = $studentsStmt->fetchAll();
 
@@ -129,7 +129,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 
     $out = fopen('php://output', 'w');
     // Header Line 1
-    $header1 = ['Rank', 'Student ID', 'Student Name', 'Gender'];
+    $header1 = ['Rank', 'Student Name', 'Gender'];
     foreach ($subjects as $sub) {
         $header1[] = $sub['subject_code'];
     }
@@ -139,7 +139,6 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     foreach ($studentRanks as $sr) {
         $row = [
             $sr['rank'],
-            $sr['student']['student_id'],
             $sr['student']['full_name'],
             $sr['student']['gender']
         ];
@@ -259,7 +258,6 @@ require_once __DIR__ . '/includes/navbar.php';
             <thead class="table-dark align-middle text-center">
                 <tr>
                     <th style="width: 50px;">Pos</th>
-                    <th style="width: 120px;">ID</th>
                     <th class="text-start" style="min-width: 170px;">Student Name</th>
                     <?php foreach ($subjects as $sub): ?>
                         <th title="<?= htmlspecialchars($sub['subject_name']) ?>" style="width: 60px;">
@@ -274,7 +272,7 @@ require_once __DIR__ . '/includes/navbar.php';
             </thead>
             <tbody>
                 <?php if (empty($studentRanks)): ?>
-                    <tr><td colspan="<?= 7 + count($subjects) ?>" class="text-center py-5 text-muted">No students or assessment marks recorded for this class.</td></tr>
+                    <tr><td colspan="<?= 6 + count($subjects) ?>" class="text-center py-5 text-muted">No students or assessment marks recorded for this class.</td></tr>
                 <?php else: ?>
                     <?php foreach ($studentRanks as $sr): 
                         $st = $sr['student'];
@@ -289,7 +287,6 @@ require_once __DIR__ . '/includes/navbar.php';
                                     <?= $sr['rank'] ?>
                                 <?php endif; ?>
                             </td>
-                            <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($st['student_id']) ?></span></td>
                             <td>
                                 <a href="<?= url('student_profile.php?id=' . $st['id']) ?>" class="fw-bold text-dark text-decoration-none">
                                     <?= htmlspecialchars($st['full_name']) ?>

@@ -49,7 +49,7 @@ $subjectStats = $subDiffStmt->fetchAll();
 
 // 3. Top 10 Students School-wide
 $top10Stmt = $db->prepare("
-    SELECT s.id, s.student_id, s.full_name, s.gender, c.class_name,
+    SELECT s.id, s.full_name, s.gender, c.class_name,
            AVG(m.total_score) as avg_score,
            SUM(m.total_score) as total_marks,
            COUNT(m.id) as subject_count
@@ -66,7 +66,7 @@ $top10Students = $top10Stmt->fetchAll();
 
 // 4. Students Requiring Academic Support (Intervention List: Avg < 50%)
 $supportStmt = $db->prepare("
-    SELECT s.id, s.student_id, s.full_name, s.gender, c.class_name, s.parent_name, s.parent_phone,
+    SELECT s.id, s.full_name, s.gender, c.class_name, s.parent_name, s.parent_phone,
            AVG(m.total_score) as avg_score,
            SUM(CASE WHEN m.total_score < 50 THEN 1 ELSE 0 END) as failed_subjects,
            COUNT(m.id) as total_subjects
@@ -201,7 +201,6 @@ require_once __DIR__ . '/includes/navbar.php';
             <thead>
                 <tr>
                     <th style="width: 50px;">Rank</th>
-                    <th>Student ID</th>
                     <th>Full Name</th>
                     <th>Gender</th>
                     <th>Class</th>
@@ -211,7 +210,7 @@ require_once __DIR__ . '/includes/navbar.php';
             </thead>
             <tbody>
                 <?php if (empty($top10Students)): ?>
-                    <tr><td colspan="7" class="text-center py-4 text-muted">No assessment results available.</td></tr>
+                    <tr><td colspan="6" class="text-center py-4 text-muted">No assessment results available.</td></tr>
                 <?php else: ?>
                     <?php foreach ($top10Students as $idx => $st): ?>
                         <tr>
@@ -226,7 +225,6 @@ require_once __DIR__ . '/includes/navbar.php';
                                     <?= $idx + 1 ?>th
                                 <?php endif; ?>
                             </td>
-                            <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($st['student_id']) ?></span></td>
                             <td>
                                 <a href="<?= url('student_profile.php?id=' . $st['id']) ?>" class="fw-bold text-dark text-decoration-none">
                                     <?= htmlspecialchars($st['full_name']) ?>
@@ -253,7 +251,6 @@ require_once __DIR__ . '/includes/navbar.php';
         <table class="table table-custom mb-0">
             <thead>
                 <tr>
-                    <th>Student ID</th>
                     <th>Full Name</th>
                     <th>Class</th>
                     <th>Parent / Guardian</th>
@@ -265,11 +262,10 @@ require_once __DIR__ . '/includes/navbar.php';
             </thead>
             <tbody>
                 <?php if (empty($supportStudents)): ?>
-                    <tr><td colspan="8" class="text-center py-4 text-success"><i class="bi bi-check2-circle me-1"></i> No students currently falling behind academically.</td></tr>
+                    <tr><td colspan="7" class="text-center py-4 text-success"><i class="bi bi-check2-circle me-1"></i> No students currently falling behind academically.</td></tr>
                 <?php else: ?>
                     <?php foreach ($supportStudents as $su): ?>
                         <tr>
-                            <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($su['student_id']) ?></span></td>
                             <td>
                                 <a href="<?= url('student_profile.php?id=' . $su['id']) ?>" class="fw-bold text-danger text-decoration-none">
                                     <?= htmlspecialchars($su['full_name']) ?>

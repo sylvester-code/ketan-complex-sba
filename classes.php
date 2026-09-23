@@ -74,16 +74,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         try {
             $db->beginTransaction();
 
-            // Find all students in this class to remove their photos
-            $stPhotos = $db->prepare("SELECT photo FROM students WHERE class_id = ? AND photo IS NOT NULL AND photo != ''");
-            $stPhotos->execute([$id]);
-            while ($pRow = $stPhotos->fetch()) {
-                $pPath = UPLOAD_DIR . DIRECTORY_SEPARATOR . $pRow['photo'];
-                if (file_exists($pPath)) {
-                    @unlink($pPath);
-                }
-            }
-
             // Clean up related foreign key tables and data
             $db->prepare("DELETE FROM marks WHERE class_id = ?")->execute([$id]);
             $db->prepare("DELETE FROM student_term_reports WHERE class_id = ?")->execute([$id]);
@@ -295,7 +285,7 @@ require_once __DIR__ . '/includes/navbar.php';
                         Are you sure you want to permanently delete class <strong id="delete_class_name" class="text-dark"></strong> from the system?
                     </p>
                     <div class="alert alert-warning text-start small mt-3 mb-0">
-                        <i class="bi bi-info-circle me-1"></i> All student records, passport photos, marks, allocations, and terminal reports associated with this class will be permanently removed.
+                        <i class="bi bi-info-circle me-1"></i> All student records, marks, allocations, and terminal reports associated with this class will be permanently removed.
                     </div>
                 </div>
                 <div class="modal-footer bg-light">

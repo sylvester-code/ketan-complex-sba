@@ -63,7 +63,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_template') {
     $sStmt->execute([$selectedSubjectId]);
     $subjectName = $sStmt->fetchColumn() ?: 'Subject';
 
-    $stuStmt = $db->prepare("SELECT student_id, full_name FROM students WHERE class_id = ? AND status = 'active' ORDER BY full_name ASC");
+    $stuStmt = $db->prepare("SELECT id, full_name FROM students WHERE class_id = ? AND status = 'active' ORDER BY full_name ASC");
     $stuStmt->execute([$selectedClassId]);
     $students = $stuStmt->fetchAll();
 
@@ -72,10 +72,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'download_template') {
 
     $output = fopen('php://output', 'w');
     // Header Row
-    fputcsv($output, ['Student ID', 'Student Name', 'Subject', 'SBA Score (Max ' . $maxSba . ')', 'Examination Score (Max ' . $maxExam . ')']);
+    fputcsv($output, ['#', 'Student Name', 'Subject', 'SBA Score (Max ' . $maxSba . ')', 'Examination Score (Max ' . $maxExam . ')']);
 
+    $idx = 1;
     foreach ($students as $st) {
-        fputcsv($output, [$st['student_id'], $st['full_name'], $subjectName, '', '']);
+        fputcsv($output, [$idx++, $st['full_name'], $subjectName, '', '']);
     }
 
     fclose($output);
@@ -123,37 +124,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $header = fgetcsv($handle);
 
             // Fetch students registered in this class
-            $stuStmt = $db->prepare("SELECT id, student_id, full_name FROM students WHERE class_id = ? AND status = 'active'");
+            $stuStmt = $db->prepare("SELECT id, full_name FROM students WHERE class_id = ? AND status = 'active'");
             $stuStmt->execute([$selectedClassId]);
             $validStudents = [];
             while ($row = $stuStmt->fetch()) {
-                $validStudents[$row['student_id']] = $row;
+                $normName = mb_strtolower(trim(preg_replace('/\s+/', ' ', $row['full_name'])));
+                $validStudents[$normName] = $row;
             }
 
-            $seenIds = [];
+            $seenNames = [];
             $rowNum = 1;
 
             while (($row = fgetcsv($handle)) !== false) {
                 $rowNum++;
                 if (empty(array_filter($row))) continue; // skip blank rows
 
-                $id = trim($row[0] ?? '');
+                $num = trim($row[0] ?? '');
                 $name = trim($row[1] ?? '');
                 $sbaRaw = trim($row[3] ?? '');
                 $examRaw = trim($row[4] ?? '');
 
                 $rowErrors = [];
+                $normName = mb_strtolower(trim(preg_replace('/\s+/', ' ', $name)));
 
-                if (empty($id)) {
-                    $rowErrors[] = "Row {$rowNum}: Missing Student ID";
-                } elseif (!isset($validStudents[$id])) {
-                    $rowErrors[] = "Row {$rowNum}: Student ID '{$id}' does not belong to this class or does not exist";
+                if (empty($name)) {
+                    $rowErrors[] = "Row {$rowNum}: Missing Student Name";
+                } elseif (!isset($validStudents[$normName])) {
+                    $rowErrors[] = "Row {$rowNum}: Student '{$name}' does not belong to this class or does not exist";
                 }
 
-                if (in_array($id, $seenIds)) {
-                    $rowErrors[] = "Row {$rowNum}: Duplicate Student ID '{$id}' detected in uploaded file";
+                if (in_array($normName, $seenNames)) {
+                    $rowErrors[] = "Row {$rowNum}: Duplicate Student '{$name}' detected in uploaded file";
                 }
-                $seenIds[] = $id;
+                $seenNames[] = $normName;
 
                 if ($sbaRaw === '' || !is_numeric($sbaRaw)) {
                     $rowErrors[] = "Row {$rowNum}: SBA score must be a number";
@@ -176,13 +179,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 if (!empty($rowErrors)) {
                     $uploadErrors = array_merge($uploadErrors, $rowErrors);
                 } else {
-                    $student = $validStudents[$id];
+                    $student = $validStudents[$normName];
                     $total = (float)$sbaRaw + (float)$examRaw;
                     $grade = calculateGradeAndRemark($total, $gradingScale);
 
                     $previewData[] = [
                         'student_db_id' => $student['id'],
-                        'student_id'    => $id,
                         'name'          => $student['full_name'],
                         'sba'           => (float)$sbaRaw,
                         'exam'          => (float)$examRaw,
@@ -502,7 +504,7 @@ require_once __DIR__ . '/includes/navbar.php';
                 <table class="table table-custom mb-0">
                     <thead>
                         <tr>
-                            <th>Student ID</th>
+                            <th style="width: 50px;">#</th>
                             <th>Student Name</th>
                             <th class="text-center">SBA Score</th>
                             <th class="text-center">Exam Score</th>
@@ -512,9 +514,9 @@ require_once __DIR__ . '/includes/navbar.php';
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($previewData as $p): ?>
+                        <?php foreach ($previewData as $idx => $p): ?>
                             <tr>
-                                <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($p['student_id']) ?></span></td>
+                                <td class="text-muted fw-bold"><?= $idx + 1 ?></td>
                                 <td><strong><?= htmlspecialchars($p['name']) ?></strong></td>
                                 <td class="text-center fw-bold"><?= number_format($p['sba'], 1) ?></td>
                                 <td class="text-center fw-bold"><?= number_format($p['exam'], 1) ?></td>

@@ -249,7 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 $students = [];
 $existingMarks = [];
 if ($selectedClassId && $selectedSubjectId) {
-    $stuStmt = $db->prepare("SELECT id, student_id, full_name FROM students WHERE class_id = ? AND status = 'active' ORDER BY full_name ASC");
+    $stuStmt = $db->prepare("SELECT id, full_name FROM students WHERE class_id = ? AND status = 'active' ORDER BY full_name ASC");
     $stuStmt->execute([$selectedClassId]);
     $students = $stuStmt->fetchAll();
 
@@ -399,7 +399,6 @@ require_once __DIR__ . '/includes/navbar.php';
                     <thead>
                         <tr>
                             <th style="width: 50px;">#</th>
-                            <th style="width: 140px;">Student ID</th>
                             <th>Student Name</th>
                             <th class="text-center" style="width: 120px;">SBA Score (Max <?= $maxSba ?>)</th>
                             <th class="text-center" style="width: 120px;">Exam Score (Max <?= $maxExam ?>)</th>
@@ -419,9 +418,6 @@ require_once __DIR__ . '/includes/navbar.php';
                         ?>
                             <tr data-student-id="<?= $st['id'] ?>">
                                 <td class="text-muted fw-bold"><?= $index + 1 ?></td>
-                                <td>
-                                    <span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($st['student_id']) ?></span>
-                                </td>
                                 <td>
                                     <strong><?= htmlspecialchars($st['full_name']) ?></strong>
                                 </td>

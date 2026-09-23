@@ -27,7 +27,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($action === 'register') {
-        $studentId   = trim($_POST['student_id'] ?? '');
         $fullName    = trim($_POST['full_name'] ?? '');
         $gender      = $_POST['gender'] ?? 'Male';
         $dob         = $_POST['date_of_birth'] ?? '';
@@ -39,46 +38,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $admissionDate = $_POST['admission_date'] ?: date('Y-m-d');
         $status      = $_POST['status'] ?? 'active';
 
-        // Auto-generate student ID if not provided
-        if (empty($studentId)) {
-            $studentId = generateNextStudentId($activeYear ? (int)substr($activeYear['year_name'], 0, 4) : date('Y'));
-        }
-
-        // Duplicate check
-        $check = $db->prepare("SELECT id FROM students WHERE student_id = ?");
-        $check->execute([$studentId]);
-        if ($check->fetch()) {
-            flash('danger', "Duplicate registration error: Student ID '{$studentId}' already exists.");
+        if (empty($fullName) || empty($dob) || empty($classId)) {
+            flash('danger', 'Full name, date of birth, and class are required.');
             header('Location: students.php');
             exit;
         }
 
-        // Handle Photo Upload
-        $photoFilename = null;
-        if (!empty($_FILES['photo']['name']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-            $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
-            if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
-                $photoFilename = 'student_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-                if (!is_dir(UPLOAD_DIR)) {
-                    mkdir(UPLOAD_DIR, 0777, true);
-                }
-                move_uploaded_file($_FILES['photo']['tmp_name'], UPLOAD_DIR . DIRECTORY_SEPARATOR . $photoFilename);
-            }
-        }
-
         try {
             $stmt = $db->prepare("
-                INSERT INTO students (student_id, full_name, gender, date_of_birth, class_id, academic_year_id, parent_name, parent_phone, address, photo, admission_date, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO students (full_name, gender, date_of_birth, class_id, academic_year_id, parent_name, parent_phone, address, admission_date, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([
-                $studentId, $fullName, $gender, $dob, $classId, $academicYear,
-                $parentName, $parentPhone, $address, $photoFilename, $admissionDate, $status
+                $fullName, $gender, $dob, $classId, $academicYear,
+                $parentName, $parentPhone, $address, $admissionDate, $status
             ]);
             $newId = $db->lastInsertId();
 
-            logActivity('STUDENT_REGISTRATION', "Registered student: {$fullName} ({$studentId})", 'students', $newId);
-            flash('success', "Student '{$fullName}' registered successfully with ID: {$studentId}!");
+            logActivity('STUDENT_REGISTRATION', "Registered student: {$fullName}", 'students', $newId);
+            flash('success', "Student '{$fullName}' registered successfully!");
         } catch (Exception $e) {
             flash('danger', 'Registration error: ' . $e->getMessage());
         }
@@ -96,33 +74,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $address     = trim($_POST['address'] ?? '');
         $status      = $_POST['status'] ?? 'active';
 
-        // Photo replacement if provided
-        $photoUpdateSql = "";
-        $params = [$fullName, $gender, $dob, $classId, $parentName, $parentPhone, $address, $status];
-
-        if (!empty($_FILES['photo']['name']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-            $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
-            if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
-                $photoFilename = 'student_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-                if (!is_dir(UPLOAD_DIR)) {
-                    mkdir(UPLOAD_DIR, 0777, true);
-                }
-                move_uploaded_file($_FILES['photo']['tmp_name'], UPLOAD_DIR . DIRECTORY_SEPARATOR . $photoFilename);
-                $photoUpdateSql = ", photo = ?";
-                $params[] = $photoFilename;
-            }
+        if (empty($fullName) || empty($dob) || empty($classId)) {
+            flash('danger', 'Full name, date of birth, and class are required.');
+            header('Location: students.php');
+            exit;
         }
-        $params[] = $id;
 
         try {
             $stmt = $db->prepare("
                 UPDATE students 
-                SET full_name = ?, gender = ?, date_of_birth = ?, class_id = ?, parent_name = ?, parent_phone = ?, address = ?, status = ? $photoUpdateSql
+                SET full_name = ?, gender = ?, date_of_birth = ?, class_id = ?, parent_name = ?, parent_phone = ?, address = ?, status = ?
                 WHERE id = ?
             ");
-            $stmt->execute($params);
+            $stmt->execute([$fullName, $gender, $dob, $classId, $parentName, $parentPhone, $address, $status, $id]);
 
-            logActivity('STUDENT_MODIFICATION', "Updated student details for ID: {$id}", 'students', $id);
+            logActivity('STUDENT_MODIFICATION', "Updated student details for ID: {$id} ({$fullName})", 'students', $id);
             flash('success', 'Student details updated successfully.');
         } catch (Exception $e) {
             flash('danger', 'Update error: ' . $e->getMessage());
@@ -140,20 +106,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         try {
             $db->beginTransaction();
 
-            // Fetch student info for cleanup and log
-            $stInfo = $db->prepare("SELECT full_name, student_id, photo FROM students WHERE id = ?");
+            // Fetch student info for log
+            $stInfo = $db->prepare("SELECT full_name FROM students WHERE id = ?");
             $stInfo->execute([$id]);
             $stu = $stInfo->fetch();
 
             if ($stu) {
-                // Remove photo if present
-                if (!empty($stu['photo'])) {
-                    $photoPath = UPLOAD_DIR . DIRECTORY_SEPARATOR . $stu['photo'];
-                    if (file_exists($photoPath)) {
-                        @unlink($photoPath);
-                    }
-                }
-
                 // Delete related records
                 $delMarks = $db->prepare("DELETE FROM marks WHERE student_id = ?");
                 $delMarks->execute([$id]);
@@ -166,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 $db->commit();
 
-                logActivity('STUDENT_DELETION', "Deleted student: {$stu['full_name']} ({$stu['student_id']})", 'students', $id);
+                logActivity('STUDENT_DELETION', "Deleted student: {$stu['full_name']}", 'students', $id);
                 flash('success', "Student record for '{$stu['full_name']}' deleted successfully.");
             } else {
                 $db->rollBack();
@@ -229,9 +187,8 @@ if ($statusFilter) {
     $params[] = $statusFilter;
 }
 if (!empty($searchQuery)) {
-    $sql .= " AND (s.full_name LIKE ? OR s.student_id LIKE ? OR s.parent_name LIKE ?)";
+    $sql .= " AND (s.full_name LIKE ? OR s.parent_name LIKE ?)";
     $like = "%{$searchQuery}%";
-    $params[] = $like;
     $params[] = $like;
     $params[] = $like;
 }
@@ -243,7 +200,6 @@ $students = $stmt->fetchAll();
 
 // All classes for filter dropdown
 $classes = $db->query("SELECT * FROM classes WHERE status = 'active' ORDER BY display_order ASC")->fetchAll();
-$suggestedId = generateNextStudentId($activeYear ? (int)substr($activeYear['year_name'], 0, 4) : date('Y'));
 
 $pageTitle = 'Student Directory';
 require_once __DIR__ . '/includes/header.php';
@@ -267,7 +223,7 @@ require_once __DIR__ . '/includes/navbar.php';
         <div class="col-md-4">
             <div class="input-group">
                 <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
-                <input type="text" name="q" class="form-control border-start-0" placeholder="Search name, student ID, parent..." value="<?= htmlspecialchars($searchQuery) ?>">
+                <input type="text" name="q" class="form-control border-start-0" placeholder="Search by student or parent name..." value="<?= htmlspecialchars($searchQuery) ?>">
             </div>
         </div>
         <div class="col-md-3">
@@ -312,8 +268,7 @@ require_once __DIR__ . '/includes/navbar.php';
         <table class="table table-custom mb-0" id="studentsTable">
             <thead>
                 <tr>
-                    <th>Photo</th>
-                    <th>Student ID</th>
+                    <th style="width: 50px;">#</th>
                     <th>Full Name</th>
                     <th>Gender</th>
                     <th>Class</th>
@@ -325,22 +280,15 @@ require_once __DIR__ . '/includes/navbar.php';
             <tbody>
                 <?php if (empty($students)): ?>
                     <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">
+                        <td colspan="7" class="text-center py-4 text-muted">
                             <i class="bi bi-inbox fs-2 d-block mb-2 text-secondary"></i>
                             No students match your criteria.
                         </td>
                     </tr>
                 <?php else: ?>
-                    <?php foreach ($students as $s): 
-                        $photoSrc = $s['photo'] ? url('uploads/students/' . $s['photo']) : asset('images/default-avatar.svg');
-                    ?>
+                    <?php foreach ($students as $idx => $s): ?>
                         <tr>
-                            <td>
-                                <img src="<?= $photoSrc ?>" alt="Avatar" class="rounded-circle border" style="width: 38px; height: 38px; object-fit: cover;">
-                            </td>
-                            <td>
-                                <span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($s['student_id']) ?></span>
-                            </td>
+                            <td class="text-muted fw-bold"><?= $idx + 1 ?></td>
                             <td>
                                 <a href="<?= url('student_profile.php?id=' . $s['id']) ?>" class="fw-bold text-dark text-decoration-none">
                                     <?= htmlspecialchars($s['full_name']) ?>
@@ -368,7 +316,7 @@ require_once __DIR__ . '/includes/navbar.php';
                                     </button>
                                     <?php if (isAdmin()): ?>
                                         <button type="button" class="btn btn-outline-danger" 
-                                                onclick="confirmDeleteStudent(<?= $s['id'] ?>, '<?= htmlspecialchars(addslashes($s['full_name']), ENT_QUOTES) ?>', '<?= htmlspecialchars(addslashes($s['student_id']), ENT_QUOTES) ?>')" 
+                                                onclick="confirmDeleteStudent(<?= $s['id'] ?>, '<?= htmlspecialchars(addslashes($s['full_name']), ENT_QUOTES) ?>')" 
                                                 title="Delete Student">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -387,7 +335,7 @@ require_once __DIR__ . '/includes/navbar.php';
 <div class="modal fade" id="registerStudentModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="POST" action="students.php" enctype="multipart/form-data">
+            <form method="POST" action="students.php">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="register">
 
@@ -399,12 +347,7 @@ require_once __DIR__ . '/includes/navbar.php';
                 </div>
                 <div class="modal-body p-4">
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Student ID / Index Number</label>
-                            <input type="text" name="student_id" class="form-control font-monospace" value="<?= htmlspecialchars($suggestedId) ?>" placeholder="e.g. KCM-2026-0001" required>
-                            <div class="form-text small">Auto-generated or input custom index number. Must be unique.</div>
-                        </div>
-                        <div class="col-md-6">
+                        <div class="col-12">
                             <label class="form-label small fw-bold">Full Name <span class="text-danger">*</span></label>
                             <input type="text" name="full_name" class="form-control" placeholder="e.g. Kwesi Appiah" required>
                         </div>
@@ -440,13 +383,9 @@ require_once __DIR__ . '/includes/navbar.php';
                             <label class="form-label small fw-bold">Residential Address</label>
                             <input type="text" name="address" class="form-control" placeholder="House number, Street, Area">
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-12">
                             <label class="form-label small fw-bold">Admission Date</label>
                             <input type="date" name="admission_date" class="form-control" value="<?= date('Y-m-d') ?>">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Student Photograph</label>
-                            <input type="file" name="photo" class="form-control" accept="image/*">
                         </div>
                     </div>
                 </div>
@@ -463,7 +402,7 @@ require_once __DIR__ . '/includes/navbar.php';
 <div class="modal fade" id="editStudentModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="POST" action="students.php" enctype="multipart/form-data">
+            <form method="POST" action="students.php">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="id" id="edit_id">
@@ -476,11 +415,7 @@ require_once __DIR__ . '/includes/navbar.php';
                 </div>
                 <div class="modal-body p-4">
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Student ID</label>
-                            <input type="text" id="edit_student_id" class="form-control font-monospace" readonly disabled>
-                        </div>
-                        <div class="col-md-6">
+                        <div class="col-12">
                             <label class="form-label small fw-bold">Full Name <span class="text-danger">*</span></label>
                             <input type="text" name="full_name" id="edit_full_name" class="form-control" required>
                         </div>
@@ -515,7 +450,7 @@ require_once __DIR__ . '/includes/navbar.php';
                             <label class="form-label small fw-bold">Residential Address</label>
                             <input type="text" name="address" id="edit_address" class="form-control">
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-12">
                             <label class="form-label small fw-bold">Status</label>
                             <select name="status" id="edit_status" class="form-select">
                                 <option value="active">Active</option>
@@ -523,10 +458,6 @@ require_once __DIR__ . '/includes/navbar.php';
                                 <option value="transferred">Transferred</option>
                                 <option value="graduated">Graduated</option>
                             </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Change Photograph</label>
-                            <input type="file" name="photo" class="form-control" accept="image/*">
                         </div>
                     </div>
                 </div>
@@ -560,7 +491,7 @@ require_once __DIR__ . '/includes/navbar.php';
                     </div>
                     <h5 class="fw-bold mb-2">Permanently Delete Student?</h5>
                     <p class="text-muted mb-0">
-                        Are you sure you want to permanently delete student <strong id="delete_student_name" class="text-dark"></strong> (<code id="delete_student_code"></code>)?
+                        Are you sure you want to permanently delete student <strong id="delete_student_name" class="text-dark"></strong>?
                     </p>
                     <div class="alert alert-warning text-start small mt-3 mb-0">
                         <i class="bi bi-info-circle me-1"></i> All assessment marks, terminal remarks, and report cards associated with this student will be completely removed.
@@ -578,16 +509,14 @@ require_once __DIR__ . '/includes/navbar.php';
 </div>
 
 <script>
-function confirmDeleteStudent(id, name, studentId) {
+function confirmDeleteStudent(id, name) {
     document.getElementById('delete_student_id').value = id;
     document.getElementById('delete_student_name').textContent = name;
-    document.getElementById('delete_student_code').textContent = studentId;
     new bootstrap.Modal(document.getElementById('deleteStudentModal')).show();
 }
 
 function openEditStudentModal(student) {
     document.getElementById('edit_id').value = student.id;
-    document.getElementById('edit_student_id').value = student.student_id;
     document.getElementById('edit_full_name').value = student.full_name;
     document.getElementById('edit_gender').value = student.gender;
     document.getElementById('edit_dob').value = student.date_of_birth;

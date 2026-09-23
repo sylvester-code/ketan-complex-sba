@@ -142,11 +142,9 @@ function formatOrdinal(int $n): string {
 }
 
 // Fetch Class Peers for Quick Navigation Dropdown
-$peerList = $db->prepare("SELECT id, full_name, student_id FROM students WHERE class_id = ? AND status = 'active' ORDER BY full_name ASC");
+$peerList = $db->prepare("SELECT id, full_name FROM students WHERE class_id = ? AND status = 'active' ORDER BY full_name ASC");
 $peerList->execute([$student['class_id']]);
 $peers = $peerList->fetchAll();
-
-$photoSrc = $student['photo'] ? url('uploads/students/' . $student['photo']) : asset('images/default-avatar.svg');
 
 $schoolName = getSetting('school_name', 'KETAN M/A B COMPLEX');
 $schoolMotto = getSetting('school_motto', 'Knowledge, Discipline and Excellence');
@@ -170,7 +168,7 @@ require_once __DIR__ . '/includes/navbar.php';
             <select name="student_id" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width: 260px;">
                 <?php foreach ($peers as $p): ?>
                     <option value="<?= $p['id'] ?>" <?= $p['id'] == $studentId ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($p['full_name']) ?> (<?= htmlspecialchars($p['student_id']) ?>)
+                        <?= htmlspecialchars($p['full_name']) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -199,7 +197,6 @@ require_once __DIR__ . '/includes/navbar.php';
             <div class="address"><?= htmlspecialchars($schoolAddress) ?></div>
             <div class="address small">Tel: <?= htmlspecialchars($schoolPhone) ?> | Email: <?= htmlspecialchars($schoolEmail) ?></div>
         </div>
-        <img src="<?= $photoSrc ?>" alt="Student Photo" class="student-photo-card border border-dark rounded">
     </div>
 
     <!-- Title Banner -->
@@ -214,16 +211,16 @@ require_once __DIR__ . '/includes/navbar.php';
             <span class="fw-bold text-dark"><?= htmlspecialchars($student['full_name']) ?></span>
         </div>
         <div class="student-meta-item">
-            <strong>Student ID / Index:</strong>
-            <span class="font-monospace fw-bold text-dark"><?= htmlspecialchars($student['student_id']) ?></span>
-        </div>
-        <div class="student-meta-item">
             <strong>Class / Form:</strong>
             <span class="fw-bold text-primary"><?= htmlspecialchars($student['class_name']) ?></span>
         </div>
         <div class="student-meta-item">
             <strong>Gender:</strong>
             <span><?= htmlspecialchars($student['gender']) ?></span>
+        </div>
+        <div class="student-meta-item">
+            <strong>Enrollment Status:</strong>
+            <span class="badge bg-success-subtle text-success border border-success-subtle"><?= ucfirst(htmlspecialchars($student['status'])) ?></span>
         </div>
         <div class="student-meta-item">
             <strong>Academic Year:</strong>

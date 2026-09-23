@@ -62,7 +62,7 @@ if (in_array($role, ['admin', 'headteacher'])) {
 
     // Best Performing Student
     $bestStudentStmt = $db->prepare("
-        SELECT s.full_name, s.student_id, c.class_name, AVG(m.total_score) as avg_score
+        SELECT s.full_name, c.class_name, AVG(m.total_score) as avg_score
         FROM marks m
         JOIN students s ON m.student_id = s.id
         JOIN classes c ON s.class_id = c.id
@@ -102,7 +102,7 @@ if (in_array($role, ['admin', 'headteacher'])) {
 
     // Top 5 Students
     $topStudentsStmt = $db->prepare("
-        SELECT s.id, s.student_id, s.full_name, c.class_name, AVG(m.total_score) as avg_score, COUNT(m.id) as subjects_count
+        SELECT s.id, s.full_name, c.class_name, AVG(m.total_score) as avg_score, COUNT(m.id) as subjects_count
         FROM marks m
         JOIN students s ON m.student_id = s.id
         JOIN classes c ON s.class_id = c.id
@@ -116,7 +116,7 @@ if (in_array($role, ['admin', 'headteacher'])) {
 
     // Students Requiring Academic Support (Avg < 50)
     $atRiskStmt = $db->prepare("
-        SELECT s.id, s.student_id, s.full_name, c.class_name, AVG(m.total_score) as avg_score
+        SELECT s.id, s.full_name, c.class_name, AVG(m.total_score) as avg_score
         FROM marks m
         JOIN students s ON m.student_id = s.id
         JOIN classes c ON s.class_id = c.id
@@ -402,7 +402,7 @@ if (in_array($role, ['admin', 'headteacher'])) {
                                     <h6 class="fw-bold mb-0">Enroll Students</h6>
                                 </div>
                                 <p class="small text-muted mb-3">
-                                    Register students into their respective classes (JHS 1, 2, 3) with auto-assigned ID numbers.
+                                    Register students into their respective classes with their full names and basic details.
                                 </p>
                             </div>
                             <a href="<?= url('students.php') ?>" class="btn btn-sm btn-outline-primary w-100">
@@ -548,7 +548,7 @@ if (in_array($role, ['admin', 'headteacher'])) {
                     <div>
                         <div class="small text-muted text-uppercase fw-bold">Overall Highest Student</div>
                         <div class="h5 mb-0 fw-bold"><?= htmlspecialchars($bestStudent['full_name'] ?? 'N/A') ?> (<?= htmlspecialchars($bestStudent['class_name'] ?? '') ?>)</div>
-                        <small class="text-success fw-bold">Average: <?= round((float)($bestStudent['avg_score'] ?? 0), 1) ?>% [<?= htmlspecialchars($bestStudent['student_id'] ?? '') ?>]</small>
+                        <small class="text-success fw-bold">Average: <?= round((float)($bestStudent['avg_score'] ?? 0), 1) ?>%</small>
                     </div>
                 </div>
             </div>
@@ -611,7 +611,6 @@ if (in_array($role, ['admin', 'headteacher'])) {
                                                 <a href="<?= url('student_profile.php?id=' . $st['id']) ?>" class="fw-bold text-dark text-decoration-none">
                                                     <?= htmlspecialchars($st['full_name']) ?>
                                                 </a>
-                                                <div class="small text-muted"><?= htmlspecialchars($st['student_id']) ?></div>
                                             </td>
                                             <td><span class="badge bg-light text-dark border"><?= htmlspecialchars($st['class_name']) ?></span></td>
                                             <td><?= $st['subjects_count'] ?></td>
@@ -651,7 +650,6 @@ if (in_array($role, ['admin', 'headteacher'])) {
                                                 <a href="<?= url('student_profile.php?id=' . $at['id']) ?>" class="fw-bold text-dark text-decoration-none">
                                                     <?= htmlspecialchars($at['full_name']) ?>
                                                 </a>
-                                                <div class="small text-muted"><?= htmlspecialchars($at['student_id']) ?></div>
                                             </td>
                                             <td><span class="badge bg-light text-dark border"><?= htmlspecialchars($at['class_name']) ?></span></td>
                                             <td class="text-end fw-bold text-danger"><?= round($at['avg_score'], 1) ?>%</td>

@@ -56,20 +56,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     try {
         $db->beginTransaction();
 
-        if (!empty($student['photo'])) {
-            $photoPath = UPLOAD_DIR . DIRECTORY_SEPARATOR . $student['photo'];
-            if (file_exists($photoPath)) {
-                @unlink($photoPath);
-            }
-        }
-
         $db->prepare("DELETE FROM marks WHERE student_id = ?")->execute([$studentId]);
         $db->prepare("DELETE FROM student_term_reports WHERE student_id = ?")->execute([$studentId]);
         $db->prepare("DELETE FROM students WHERE id = ?")->execute([$studentId]);
 
         $db->commit();
 
-        logActivity('STUDENT_DELETION', "Deleted student: {$student['full_name']} ({$student['student_id']})", 'students', $studentId);
+        logActivity('STUDENT_DELETION', "Deleted student: {$student['full_name']}", 'students', $studentId);
         flash('success', "Student record for '{$student['full_name']}' was permanently deleted.");
         header('Location: students.php');
         exit;
@@ -198,8 +191,6 @@ foreach ($peerAverages as $peer) {
 // Available terms for switcher
 $allTerms = $db->query("SELECT t.*, y.year_name FROM terms t JOIN academic_years y ON t.academic_year_id = y.id ORDER BY y.id DESC, t.id ASC")->fetchAll();
 
-$photoSrc = $student['photo'] ? url('uploads/students/' . $student['photo']) : asset('images/default-avatar.svg');
-
 $pageTitle = $student['full_name'] . ' - Performance Profile';
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/sidebar.php';
@@ -211,10 +202,11 @@ require_once __DIR__ . '/includes/navbar.php';
     <div class="p-4" style="background: linear-gradient(135deg, #0f2942 0%, #1e40af 100%); color: #ffffff;">
         <div class="row align-items-center g-3">
             <div class="col-auto">
-                <img src="<?= $photoSrc ?>" alt="Student Photo" class="rounded-circle border border-3 border-warning shadow" style="width: 95px; height: 95px; object-fit: cover; background: #ffffff;">
+                <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold shadow" style="width: 72px; height: 72px; font-size: 2rem;">
+                    <i class="bi bi-person-fill"></i>
+                </div>
             </div>
             <div class="col">
-                <div class="badge bg-warning text-dark font-monospace mb-1"><?= htmlspecialchars($student['student_id']) ?></div>
                 <h2 class="h3 fw-bold mb-1 text-white" style="font-family: 'Outfit';"><?= htmlspecialchars($student['full_name']) ?></h2>
                 <div class="d-flex flex-wrap gap-3 small text-light opacity-90">
                     <span><i class="bi bi-building me-1"></i> Class: <strong><?= htmlspecialchars($student['class_name']) ?></strong></span>
@@ -457,10 +449,10 @@ require_once __DIR__ . '/includes/navbar.php';
                     </div>
                     <h5 class="fw-bold mb-2">Permanently Delete Student?</h5>
                     <p class="text-muted mb-0">
-                        Are you sure you want to permanently delete <strong><?= htmlspecialchars($student['full_name']) ?></strong> (<code><?= htmlspecialchars($student['student_id']) ?></code>)?
+                        Are you sure you want to permanently delete <strong><?= htmlspecialchars($student['full_name']) ?></strong>?
                     </p>
                     <div class="alert alert-warning text-start small mt-3 mb-0">
-                        <i class="bi bi-info-circle me-1"></i> All marks, attendance records, terminal reports, and uploaded photos for this student will be completely removed from the system.
+                        <i class="bi bi-info-circle me-1"></i> All marks, attendance records, and terminal reports for this student will be completely removed from the system.
                     </div>
                 </div>
                 <div class="modal-footer bg-light">

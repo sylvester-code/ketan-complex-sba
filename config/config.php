@@ -315,33 +315,11 @@ function getDefaultHeadTeacherRemark(float $averageScore, string $grade): string
 
 
 /**
- * Generate Next Unique Student ID (Format: KCM-YYYY-####)
+ * Generate Next Unique Student ID (Deprecated - student_id removed from system)
  */
 function generateNextStudentId(?int $academicYear = null): string
 {
-    $year = $academicYear ? (string) $academicYear : date('Y');
-    $prefix = "KCM-{$year}-";
-
-    try {
-        $db = getDB();
-        if ($db instanceof PDO) {
-            $stmt = $db->prepare("SELECT student_id FROM students WHERE student_id LIKE ? ORDER BY id DESC LIMIT 1");
-            $stmt->execute([$prefix . '%']);
-            $last = $stmt->fetchColumn();
-
-            if ($last) {
-                $num = (int) substr($last, strlen($prefix));
-                $nextNum = str_pad((string) ($num + 1), 4, '0', STR_PAD_LEFT);
-            } else {
-                $nextNum = '0001';
-            }
-            return $prefix . $nextNum;
-        }
-    } catch (Throwable $e) {
-        // Fallback
-    }
-
-    return $prefix . '0001';
+    return '';
 }
 
 /**
