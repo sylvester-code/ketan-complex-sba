@@ -1,7 +1,17 @@
 -- ==========================================================
--- Ketan Complex MJHS - Unified Database Script
+-- KETAN M/A B COMPLEX - Unified Master Database Script
 -- School-Based Assessment & Performance Management System
--- Single consolidated database schema, seed & initial dataset
+-- 
+-- Single Consolidated Database Schema, Structure & Default Seeds.
+-- Includes:
+--   - All 14 Core Tables (Users, Classes, Subjects, Allocations,
+--     Class Teachers, Academic Years, Terms, Students, Submissions,
+--     Marks, Reports, Grading Scale, Settings, Audit Logs)
+--   - Role-Based Access Control & Signature Support
+--   - Active Class Teacher Designation Structure
+--   - Ghanaian Standard 50% SBA + 50% Exam Calculation Scheme
+--   - Preserved Super Administrator Account (COMPLEX / VESTER442)
+--   - Clean Slate: 0 Demo Students, 0 Demo Teachers
 -- ==========================================================
 
 CREATE DATABASE IF NOT EXISTS `ketan_complex_sba` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -21,6 +31,7 @@ CREATE TABLE `users` (
   `full_name` VARCHAR(100) NOT NULL,
   `role` ENUM('admin', 'headteacher', 'teacher') NOT NULL DEFAULT 'teacher',
   `phone` VARCHAR(30) DEFAULT NULL,
+  `signature` VARCHAR(255) DEFAULT NULL,
   `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
   `last_login` DATETIME DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -39,9 +50,12 @@ CREATE TABLE `classes` (
   `class_code` VARCHAR(20) DEFAULT NULL,
   `display_order` INT NOT NULL DEFAULT 0,
   `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+  `class_teacher_id` INT DEFAULT NULL,
+  `class_teacher_assigned_at` DATETIME DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX `idx_classes_status` (`status`),
-  INDEX `idx_classes_order` (`display_order`)
+  INDEX `idx_classes_order` (`display_order`),
+  FOREIGN KEY (`class_teacher_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------------------------------------
@@ -109,7 +123,7 @@ CREATE TABLE `teacher_assignments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------------------------------------
--- 7. Students Table
+-- 7. Students Table (Identified by Name & Class, No ID/Photo)
 -- ----------------------------------------------------------
 DROP TABLE IF EXISTS `students`;
 CREATE TABLE `students` (
@@ -267,6 +281,22 @@ CREATE TABLE `audit_logs` (
   INDEX `idx_audit_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ----------------------------------------------------------
+-- 14. Class Teachers Table (Class Teacher Designation & History)
+-- ----------------------------------------------------------
+DROP TABLE IF EXISTS `class_teachers`;
+CREATE TABLE `class_teachers` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `class_id` INT NOT NULL,
+  `teacher_id` INT NOT NULL,
+  `academic_year_id` INT NOT NULL,
+  `assigned_at` DATETIME NOT NULL,
+  UNIQUE KEY `unique_class_year` (`class_id`, `academic_year_id`),
+  FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`teacher_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`academic_year_id`) REFERENCES `academic_years` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ==========================================================
@@ -327,13 +357,13 @@ ON DUPLICATE KEY UPDATE `remark` = VALUES(`remark`);
 
 -- 6. System Settings
 INSERT INTO `system_settings` (`setting_key`, `setting_value`) VALUES
-('school_name', 'Ketan Complex MJHS'),
+('school_name', 'KETAN M/A B COMPLEX'),
 ('school_tagline', 'School-Based Assessment & Performance Management System'),
 ('school_motto', 'Knowledge, Discipline and Excellence'),
-('school_address', 'P.O. Box 23, Ketan, Sekondi-Takoradi, Western Region, Ghana'),
+('school_address', 'P.O. Box 450, Ketan, Sekondi-Takoradi, Western Region, Ghana'),
 ('school_phone', '+233 (0) 31 204 5678 / +233 (0) 24 412 3456'),
 ('school_email', 'info@ketancomplexmjhs.edu.gh'),
-('head_teacher (B.Ed, M.Ed)'),
+('head_teacher_name', 'Mr. Emmanuel K. Mensah (B.Ed, M.Ed)'),
 ('max_sba_score', '50'),
 ('max_exam_score', '50'),
 ('default_pass_mark', '50'),
@@ -348,4 +378,3 @@ ON DUPLICATE KEY UPDATE `setting_value` = VALUES(`setting_value`);
 INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `full_name`, `role`, `phone`, `status`) VALUES
 (1, 'COMPLEX', 'admin@ketancomplexmjhs.edu.gh', '$2y$10$UCzZnWDBz89E7sOD0f6MJ.xsQBX1iDGqiMuPvsyXtrHcDm5/3zfEu', 'System Administrator', 'admin', '+233244000111', 'active')
 ON DUPLICATE KEY UPDATE `username` = VALUES(`username`), `password_hash` = VALUES(`password_hash`);
-
