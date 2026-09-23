@@ -23,6 +23,11 @@ if (!headers_sent()) {
     <title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) . ' | ' : '' ?><?= APP_FULL_TITLE ?></title>
     <meta name="description" content="Official School-Based Assessment (SBA) and Student Performance Management System for KETAN M/A B COMPLEX.">
     
+    <!-- Favicon (School Logo) -->
+    <link rel="icon" href="<?= getSchoolLogoUrl() ?>">
+    <link rel="shortcut icon" href="<?= getSchoolLogoUrl() ?>">
+    <link rel="apple-touch-icon" href="<?= getSchoolLogoUrl() ?>">
+    
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
